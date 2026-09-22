@@ -14,9 +14,24 @@ const findRunId=x=>{
 const clearBlockingRun=async t=>{
  try{
   const r=await fetch(BASE+'/chats/active',{headers:auth(t)}); const d=await r.json().catch(()=>null);
-  const id=findRunId(d); if(!id)return false;
-  const cr=await fetch(BASE+`/runs/${id}/cancel`,{method:'POST',headers:auth(t)});
-  if(!cr.ok)return false; await wait(500); return true;
+  const chatIds=Array.isArray(d?.chat_ids)?d.chat_ids:[];
+  let cancelled=false;
+  for(const chatId of chatIds){
+   const hr=await fetch(BASE+`/chats/${chatId}/history?limit=5&offset=0&include_details=true`,{headers:auth(t)});
+   const h=await hr.json().catch(()=>null);
+   if(!hr.ok)continue;
+   const items=Array.isArray(h?.items)?h.items:[];
+   for(const item of items){
+    const status=String(item?.run?.status||item?.status||'').toLowerCase();
+    const runId=item?.run?.id||item?.run_id;
+    if(runId&&!['completed','failed','cancelled','canceled'].includes(status)){
+     const cr=await fetch(BASE+`/runs/${runId}/cancel`,{method:'POST',headers:auth(t)});
+     if(cr.ok)cancelled=true;
+    }
+   }
+  }
+  if(cancelled)await wait(750);
+  return cancelled;
  }catch{return false}
 };
 export default async function handler(req,res){
