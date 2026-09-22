@@ -19,12 +19,37 @@ export function coverage(m:MapState){return Math.round(count(m)/30*100)}
 export function fromLiveMap(raw:any):MapState{
  const out=Object.fromEntries(categories.map(c=>[c,[] as AspectId[]])) as MapState;
  const rows=Array.isArray(raw?.categories)?raw.categories:Array.isArray(raw?.personal_map?.categories)?raw.personal_map.categories:[];
- for(const row of rows){
-  const id=String(row?.id||'');
-  if(!(categories as readonly string[]).includes(id))continue;
-  const vals=Array.isArray(row?.aspects)?row.aspects:[];
-  out[id as CategoryId]=vals.filter((a:any)=>(aspects as readonly string[]).includes(String(a))) as AspectId[];
+ if(rows.length){
+  for(const row of rows){
+   const id=String(row?.id||'');
+   if(!(categories as readonly string[]).includes(id))continue;
+   const vals=Array.isArray(row?.aspects)?row.aspects:[];
+   out[id as CategoryId]=vals.filter((a:any)=>(aspects as readonly string[]).includes(String(a))) as AspectId[];
+  }
+  return out;
  }
+ // The production iXo /conversation/map endpoint currently returns its memory-domain
+ // representation, while the iXo UI groups those domains into the ten Personal Map
+ // life areas. Preserve only confirmed coverage here; never invent priorities/goals.
+ const domains=Array.isArray(raw?.domains)?raw.domains:[];
+ const covered=(names:string[])=>domains.some((d:any)=>{
+  const id=String(d?.id||d?.name||d?.domain||'').toLowerCase();
+  const isCovered=d?.covered===true || d?.is_covered===true || d?.status==='covered';
+  return isCovered && names.includes(id);
+ });
+ const mapping:Record<CategoryId,string[]>={
+  psychology:['psyche','psychology'],
+  health:['sleep','nutrition','body','health','substances'],
+  relationships:['relations','relationships'],
+  family:['family'],
+  work:['work'],
+  finance:['money','finance','finances'],
+  development:['development'],
+  rest:['rest'],
+  values:['meaning','values'],
+  environment:['environment']
+ };
+ for(const c of categories) if(covered(mapping[c])) out[c]=['situation'];
  return out;
 }
 export function learnedBetween(before:MapState,after:MapState):Ref[]{const out:Ref[]=[];for(const c of categories)for(const a of after[c])if(!before[c].includes(a))out.push({category:c,aspect:a});return out}
