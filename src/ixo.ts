@@ -17,9 +17,14 @@ export function cloneSeed():MapState{return Object.fromEntries(categories.map(c=
 export function count(m:MapState){return categories.reduce((n,c)=>n+m[c].length,0)}
 export function coverage(m:MapState){return Math.round(count(m)/30*100)}
 export function fromLiveMap(raw:any):MapState{
- const out=Object.fromEntries(categories.map(c=>[c,[]])) as MapState;
+ const out=Object.fromEntries(categories.map(c=>[c,[] as AspectId[]])) as MapState;
  const rows=Array.isArray(raw?.categories)?raw.categories:Array.isArray(raw?.personal_map?.categories)?raw.personal_map.categories:[];
- for(const row of rows){const id=String(row?.id||'') as CategoryId;if(!categories.includes(id))continue;const vals=Array.isArray(row?.aspects)?row.aspects:[];out[id]=vals.filter((a:any)=>aspects.includes(a)) as AspectId[]}
+ for(const row of rows){
+  const id=String(row?.id||'');
+  if(!(categories as readonly string[]).includes(id))continue;
+  const vals=Array.isArray(row?.aspects)?row.aspects:[];
+  out[id as CategoryId]=vals.filter((a:any)=>(aspects as readonly string[]).includes(String(a))) as AspectId[];
+ }
  return out;
 }
 export function learnedBetween(before:MapState,after:MapState):Ref[]{const out:Ref[]=[];for(const c of categories)for(const a of after[c])if(!before[c].includes(a))out.push({category:c,aspect:a});return out}
