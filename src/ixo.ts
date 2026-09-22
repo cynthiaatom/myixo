@@ -28,28 +28,27 @@ export function fromLiveMap(raw:any):MapState{
   }
   return out;
  }
- // The production iXo /conversation/map endpoint currently returns its memory-domain
- // representation, while the iXo UI groups those domains into the ten Personal Map
- // life areas. Preserve only confirmed coverage here; never invent priorities/goals.
- const domains=Array.isArray(raw?.domains)?raw.domains:[];
- const covered=(names:string[])=>domains.some((d:any)=>{
-  const id=String(d?.id||d?.name||d?.domain||'').toLowerCase();
-  const isCovered=d?.covered===true || d?.is_covered===true || d?.status==='covered';
-  return isCovered && names.includes(id);
- });
- const mapping:Record<CategoryId,string[]>={
-  psychology:['psyche','psychology'],
-  health:['sleep','nutrition','body','health','substances'],
-  relationships:['relations','relationships'],
-  family:['family'],
-  work:['work'],
-  finance:['money','finance','finances'],
-  development:['development'],
-  rest:['rest'],
-  values:['meaning','values'],
-  environment:['environment']
+ const aliases:Record<CategoryId,string[]>={
+  psychology:['psyche','psychology'],health:['sleep','nutrition','body','health','substances'],
+  relationships:['relations','relationships'],family:['family'],work:['work'],
+  finance:['money','finance','finances'],development:['development'],rest:['rest'],
+  values:['meaning','values'],environment:['environment']
  };
- for(const c of categories) if(covered(mapping[c])) out[c]=['situation'];
+ const hit=new Set<string>();
+ const add=(v:any)=>{const s=String(v||'').toLowerCase();for(const names of Object.values(aliases))if(names.includes(s))hit.add(s)};
+ // Prefer actual saved/stable facts. A configured domain existing by itself is NOT coverage.
+ const facts=[...(Array.isArray(raw?.facts)?raw.facts:[]),...(Array.isArray(raw?.stable_facts)?raw.stable_facts:[]),...(Array.isArray(raw?.profile_facts)?raw.profile_facts:[])];
+ for(const fact of facts) add(fact?.domain||fact?.area||fact?.category);
+ // Some backend versions return domain objects/dictionaries with explicit coverage or saved facts.
+ const ds=raw?.domains;
+ const entries=Array.isArray(ds)?ds:Object.entries(ds&&typeof ds==='object'?ds:{}).map(([id,v])=>({id,...(v&&typeof v==='object'?v:{value:v})}));
+ for(const d of entries){
+  const id=d?.id||d?.name||d?.domain;
+  const explicit=d?.covered===true||d?.is_covered===true||d?.stable===true||d?.filled===true;
+  const hasFacts=(Array.isArray(d?.facts)&&d.facts.length>0)||(Array.isArray(d?.stable_facts)&&d.stable_facts.length>0)||(Number(d?.fact_count)>0)||(Number(d?.stable_count)>0);
+  if(explicit||hasFacts)add(id);
+ }
+ for(const cat of categories)if(aliases[cat].some(x=>hit.has(x)))out[cat]=['situation'];
  return out;
 }
 export function learnedBetween(before:MapState,after:MapState):Ref[]{const out:Ref[]=[];for(const c of categories)for(const a of after[c])if(!before[c].includes(a))out.push({category:c,aspect:a});return out}
