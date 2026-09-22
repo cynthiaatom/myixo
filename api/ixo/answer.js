@@ -3,6 +3,22 @@ const token=req=>{const m=(req.headers.cookie||'').match(/(?:^|; )ixo_access=([^
 const auth=t=>({authorization:`Bearer ${t}`,'content-type':'application/json'});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const detail=x=>typeof x?.detail==='string'?x.detail:(x?.detail?.message||x?.message||'');
+const findRunId=x=>{
+ if(!x||typeof x!=='object')return null;
+ for(const [k,v] of Object.entries(x)){
+  if(/run.*id|active.*run/i.test(k)&&typeof v==='string'&&/^[0-9a-f-]{36}$/i.test(v))return v;
+  if(v&&typeof v==='object'){const id=findRunId(v);if(id)return id}
+ }
+ return null;
+};
+const clearBlockingRun=async t=>{
+ try{
+  const r=await fetch(BASE+'/chats/active',{headers:auth(t)}); const d=await r.json().catch(()=>null);
+  const id=findRunId(d); if(!id)return false;
+  const cr=await fetch(BASE+`/runs/${id}/cancel`,{method:'POST',headers:auth(t)});
+  if(!cr.ok)return false; await wait(500); return true;
+ }catch{return false}
+};
 export default async function handler(req,res){
  if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
  const t=token(req); if(!t)return res.status(401).json({error:'Not connected'});
@@ -13,10 +29,14 @@ export default async function handler(req,res){
    const chatR=await fetch(BASE+'/chats',{method:'POST',headers:auth(t),body:JSON.stringify({title:'Build My iXo'})}); const chat=await chatR.json();
    if(!chatR.ok)return res.status(chatR.status).json({error:detail(chat)||'Could not create iXo conversation'});
    const prompt=`Please learn and remember the following information about me as personal context. It is my answer to a Personal Map onboarding question. Use it to improve your understanding of me, but do not invent details I did not state. My answer: ${answer}`;
-   const runR=await fetch(BASE+`/chats/${chat.id}/runs`,{method:'POST',headers:auth(t),body:JSON.stringify({prompt,locale:'en',max_steps:20})}); let run=await runR.json();
+   const body=JSON.stringify({prompt,locale:'en',max_steps:20});
+   let runR=await fetch(BASE+`/chats/${chat.id}/runs`,{method:'POST',headers:auth(t),body}); let run=await runR.json();
+   if(runR.status===409 && await clearBlockingRun(t)){
+     runR=await fetch(BASE+`/chats/${chat.id}/runs`,{method:'POST',headers:auth(t),body}); run=await runR.json();
+   }
    if(!runR.ok){
      const msg=detail(run);
-     if(runR.status===409)return res.status(202).json({processing:true,status:'busy',message:msg||'Your iXo is already processing another request. Please wait a moment and try again.',before});
+     if(runR.status===409)return res.status(409).json({error:msg||'iXo still has another active run. Open iXo once and stop the active response, then submit again.',code:'ixo_busy'});
      return res.status(runR.status).json({error:msg||'Could not send answer to iXo'});
    }
    const started=Date.now();
