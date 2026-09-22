@@ -37,8 +37,24 @@ export function fromLiveMap(raw:any):MapState{
  const hit=new Set<string>();
  const add=(v:any)=>{const s=String(v||'').toLowerCase();for(const names of Object.values(aliases))if(names.includes(s))hit.add(s)};
  // Prefer actual saved/stable facts. A configured domain existing by itself is NOT coverage.
- const facts=[...(Array.isArray(raw?.facts)?raw.facts:[]),...(Array.isArray(raw?.stable_facts)?raw.stable_facts:[]),...(Array.isArray(raw?.profile_facts)?raw.profile_facts:[])];
- for(const fact of facts) add(fact?.domain||fact?.area||fact?.category);
+ const visitFacts=(node:any,parentKey='')=>{
+  if(node==null)return;
+  if(Array.isArray(node)){for(const x of node)visitFacts(x,parentKey);return}
+  if(typeof node!=='object')return;
+  const domain=node.domain||node.area||node.category;
+  if(domain)add(domain);
+  for(const [k,v] of Object.entries(node)){
+   const kl=k.toLowerCase();
+   if(Object.values(aliases).some(names=>names.includes(kl))){
+    const nonEmpty=Array.isArray(v)?v.length>0:(v&&typeof v==='object'?Object.keys(v as any).length>0:Boolean(v));
+    if(nonEmpty)add(kl);
+   }
+   visitFacts(v,k);
+  }
+ };
+ visitFacts(raw?.facts,'facts');
+ visitFacts(raw?.stable_facts,'stable_facts');
+ visitFacts(raw?.profile_facts,'profile_facts');
  // Some backend versions return domain objects/dictionaries with explicit coverage or saved facts.
  const ds=raw?.domains;
  const entries=Array.isArray(ds)?ds:Object.entries(ds&&typeof ds==='object'?ds:{}).map(([id,v])=>({id,...(v&&typeof v==='object'?v:{value:v})}));
