@@ -149,7 +149,7 @@ export default function App(){
 
   const loadNativeContext=async()=>{
     if(nativeContext)return nativeContext;
-    const r=await fetch('/api/ixo/intelligence-context?ts='+Date.now(),{cache:'no-store'});
+    const r=await fetch('/api/ixo/map?detail=intelligence&ts='+Date.now(),{cache:'no-store'});
     const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'Could not load iXo intelligence context');
     setNativeContext(d);
