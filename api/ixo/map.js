@@ -47,6 +47,31 @@ export default async function handler(req,res){
   const rawR=await fetch(BASE+'/conversation/map',{headers:headers(t),cache:'no-store'});
   const raw=await rawR.json().catch(()=>({}));
   if(!rawR.ok)return res.status(rawR.status).json({error:raw?.detail||'Could not load Personal Map'});
+
+  // Temporary privacy-safe diagnostics: log only field names, domain identifiers,
+  // and collection counts. Never log fact text or user content.
+  try{
+    const ds=raw?.domains;
+    const facts=raw?.facts;
+    const sampleDomains=Array.isArray(ds)?ds.slice(0,12).map(d=>({
+      keys:d&&typeof d==='object'?Object.keys(d):[],
+      id:d?.id||d?.name||d?.domain||d?.key||null,
+      fact_count:Array.isArray(d?.facts)?d.facts.length:(d?.fact_count??d?.stable_count??null)
+    })):(ds&&typeof ds==='object'?Object.keys(ds).slice(0,20):[]);
+    const sampleFact=facts&&typeof facts==='object'
+      ?(Array.isArray(facts)?facts.slice(0,3).map(x=>x&&typeof x==='object'?Object.keys(x):typeof x):Object.keys(facts).slice(0,20))
+      :typeof facts;
+    console.log('IXO_MAP_SHAPE',JSON.stringify({
+      top:Object.keys(raw||{}),
+      domains_type:Array.isArray(ds)?'array':typeof ds,
+      domains_count:Array.isArray(ds)?ds.length:(ds&&typeof ds==='object'?Object.keys(ds).length:0),
+      sample_domains:sampleDomains,
+      facts_type:Array.isArray(facts)?'array':typeof facts,
+      facts_count:Array.isArray(facts)?facts.length:(facts&&typeof facts==='object'?Object.keys(facts).length:0),
+      sample_fact_shape:sampleFact
+    }));
+  }catch{}
+
   const direct=findStructured(raw);if(direct)return res.status(200).json(direct);
 
   // iXo's visible 10-area Personal Map is emitted by the continuous conversation
