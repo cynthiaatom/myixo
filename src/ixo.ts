@@ -20,13 +20,32 @@ export function fromLiveMap(raw:any):MapState{
  const out=Object.fromEntries(categories.map(c=>[c,[] as AspectId[]])) as MapState;
  const rows=Array.isArray(raw?.categories)?raw.categories:Array.isArray(raw?.personal_map?.categories)?raw.personal_map.categories:[];
  if(rows.length){
+  let recognized=false;
   for(const row of rows){
-   const id=String(row?.id||'');
+   const id=String(row?.id||row?.category||row?.area||'').toLowerCase();
    if(!(categories as readonly string[]).includes(id))continue;
-   const vals=Array.isArray(row?.aspects)?row.aspects:[];
-   out[id as CategoryId]=vals.filter((a:any)=>(aspects as readonly string[]).includes(String(a))) as AspectId[];
+   const vals=Array.isArray(row?.aspects)
+    ?row.aspects.map((a:any)=>typeof a==='string'?a:(a?.id||a?.name||a?.aspect))
+    :[];
+   const valid=vals.filter((a:any)=>(aspects as readonly string[]).includes(String(a))) as AspectId[];
+   if(valid.length){
+    out[id as CategoryId]=valid;
+    recognized=true;
+    continue;
+   }
+   // Current iXo can return one category-level "has saved context" flag rather
+   // than the older 3-aspect array. Treat that as confirmed situation context;
+   // do not invent priorities or goals.
+   const flags=[
+    row?.covered,row?.filled,row?.has_context,row?.hasContext,row?.stable,row?.confirmed
+   ];
+   const pct=Number(row?.percent??row?.coverage??0);
+   if(flags.some(Boolean)||pct>0){
+    out[id as CategoryId]=['situation'];
+    recognized=true;
+   }
   }
-  return out;
+  if(recognized)return out;
  }
  const aliases:Record<CategoryId,string[]>={
   psychology:['psyche','psychology'],health:['sleep','nutrition','body','health','substances'],
