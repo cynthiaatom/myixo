@@ -148,7 +148,7 @@ export function parseNativePersonalMap(payload:unknown):PersonalMapModel{
 
 export function mapProgress(model:PersonalMapModel){
   if(model.mode==='areas')return {current:model.covered.length,total:10,label:model.covered.length+'/10',description:'AREAS WITH SAVED CONTEXT'};
-  return {current:count(model.map),total:30,label=count(model.map)+'/30',description:'CONTEXT DIMENSIONS'};
+  return {current:count(model.map),total:30,label:count(model.map)+'/30',description:'CONTEXT DIMENSIONS'};
 }
 
 export function changedAreas(before:PersonalMapModel,after:PersonalMapModel):CategoryId[]{
