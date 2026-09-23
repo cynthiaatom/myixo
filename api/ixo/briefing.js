@@ -7,6 +7,7 @@ export default async function handler(req,res){
     if(req.method==='GET'){
       const r=await ixoFetch(req,res,'/briefing/sessions/current',{method:'GET',headers:{'X-UI-Locale':'en'}});
       const data=await r.json().catch(()=>null);
+      if(r.status===404)return res.status(200).json({session:null});
       if(!r.ok)return res.status(r.status).json({error:errorDetail(data)||'Could not load iXo briefing'});
       return res.status(200).json({session:data});
     }
