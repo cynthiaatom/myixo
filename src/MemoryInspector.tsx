@@ -97,7 +97,7 @@ export default function MemoryInspector({memory,setMemory,onClose}:{memory:Memor
   },[memory,filter]);
   const clarifyCount=memory.items.filter(x=>x.status==='needs_clarification').length;
 
-  const changed=(fact:MemoryFact)=>setMemory({...memory,items:memory.items.map(x=>x.id===fact.id?fact:x),profile_revision:Math.max(memory.profile_revision,fact.revision)});
+  const changed=(fact:MemoryFact)=>setMemory({...memory,items:memory.items.map(x=>x.id===fact.id?fact:x)});
   const removed=(id:string)=>setMemory({...memory,items:memory.items.filter(x=>x.id!==id)});
 
   return <section className="memoryInspector">
