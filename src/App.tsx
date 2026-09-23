@@ -133,6 +133,7 @@ export default function App(){
         const sr=await fetch('/api/ixo/profile-status?ts='+Date.now(),{cache:'no-store'});
         const sd=await sr.json().catch(()=>({}));
         if(sr.ok&&Number(sd.profile_revision||0)===Number(memory.profile_revision||0))return memory;
+        if(sr.ok&&Number(sd.profile_revision||0)!==Number(memory.profile_revision||0))setNativeContext(null);
       }catch{return memory}
     }
     const all:any[]=[];
