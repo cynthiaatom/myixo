@@ -19,9 +19,14 @@ export default function Map({model,highlight=[]}:{model:PersonalMapModel,highlig
       if(model.mode==='areas'){
         const known=covered.has(cat);
         return <g key={cat}>
-          <path d={path(a,b,R[0][0],R[2][1])} fill={known?'var(--gold)':'var(--raised)'} stroke={known?'var(--gold2)':'var(--border)'} className={hi.has(cat)?'ignite':known?'breathe':'dim'}>
-            <title>{labels[cat]} — {known?'iXo has saved context':'no saved context yet'}</title>
-          </path>
+          {R.map((rr,ai)=><path key={ai} d={path(a,b,rr[0],rr[1])}
+            fill={known&&ai===1?'var(--gold)':'var(--raised)'}
+            fillOpacity={known&&ai===1?.82:.72}
+            stroke={known?'var(--gold2)':'var(--border)'}
+            strokeOpacity={known?(ai===1?1:.55):1}
+            className={hi.has(cat)&&known&&ai===1?'ignite':known&&ai===1?'breathe':'dim'}>
+            <title>{labels[cat]} — {known?'iXo has saved context at the area level; sub-dimension status is not exposed by this map':'no saved context yet'}</title>
+          </path>)}
           <text x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle">{labels[cat]}</text>
         </g>
       }
