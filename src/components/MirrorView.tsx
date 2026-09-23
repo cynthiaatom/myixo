@@ -12,8 +12,8 @@ export default function MirrorView({memory,nativeContext,onMemory,onDecide}:{mem
       <div className="findingType">{f.type}</div><h2>{f.observation}</h2><p>{f.why}</p>
       <div className="mirrorColumns"><div><span>KNOWN</span>{f.known.map((x,i)=><p key={i}>{x}</p>)}</div><div><span>INFERRED</span>{f.inferred.length?f.inferred.map((x,i)=><p key={i}>{x}</p>):<p>Nothing beyond the evidence.</p>}</div><div><span>UNKNOWN</span>{f.unknown.map((x,i)=><p key={i}>{x}</p>)}</div></div>
       <div className="resolveQuestion"><span>QUESTION THAT WOULD RESOLVE THIS</span><b>{f.resolveQuestion}</b></div>
-      <div className="actions"><button onClick={()=>setExplain({observation:f.observation,known:f.known,inferred:f.inferred,unknown:f.unknown,sources:f.evidence})}>Show me why</button><button onClick={onMemory}>Correct iXo</button><button onClick={onDecide}>Think this through</button></div>
+      <div className="actions"><button onClick={()=>setExplain({observation:f.observation,known:f.known,inferred:f.inferred,unknown:f.unknown,sources:f.evidence})}>Show me why</button><button onClick={()=>setExplain({observation:f.observation,known:f.known,inferred:f.inferred,unknown:f.unknown,sources:f.evidence})}>Show evidence</button>{f.type==='MISSING INFORMATION'&&<button onClick={onMemory}>Answer the missing question</button>}<button onClick={onMemory}>Correct iXo</button><button onClick={onDecide}>Think this through</button></div>
     </article>)}</div>:<div className="quietState"><div className="quietOrb"/><h2>I don't see a meaningful blind spot in the context available right now.</h2><p>Zero findings is better than invented insight.</p></div>}
-    {explain&&<ExplainPanel explanation={explain} onClose={()=>setExplain(null)}/>}
+    {explain&&<ExplainPanel explanation={explain} onClose={()=>setExplain(null)} onCorrect={()=>{setExplain(null);onMemory()}}/>}
   </section>
 }
