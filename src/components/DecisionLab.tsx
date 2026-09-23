@@ -40,6 +40,7 @@ export default function DecisionLab(){
       {working&&<p className="liveStatus">LIVE RUN · {status||'working'}</p>}{error&&<div className="connectError">{error}</div>}
     </div>
     <div className="decisionResult">{result?<><div className="eyebrow">APPLICATION REASONING · GROUNDED IN VERIFIED MEMORY</div><h2>{String(result.summary||'Decision context')}</h2>
+      <div className={"runAudit "+((result.runtime_tool_activity||[]).length?'warning':'clean')}>{(result.runtime_tool_activity||[]).length?('Additional runtime tools were observed: '+(result.runtime_tool_activity||[]).join(', ')+'. Treat any unsupported personal detail cautiously.'):'No additional runtime tool calls were observed. The native runtime may still have system-level context that this app cannot independently inspect.'}</div>
       <ResultGroup title="KNOWN PERSONAL CONTEXT" values={arr(result.known_context)}/>
       <ResultGroup title="GOALS AFFECTED" values={arr(result.goals_affected)}/>
       <ResultGroup title="CONSTRAINTS" values={arr(result.constraints)}/>
