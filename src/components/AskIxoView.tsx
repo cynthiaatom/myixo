@@ -31,7 +31,7 @@ export default function AskIxoView(){
     <div className="askComposer"><textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Ask something where your goals, constraints, priorities or situation could matter…"/><button className="primary" disabled={working||!question.trim()} onClick={ask}>{working?'My iXo is thinking…':'Ask My iXo →'}</button>{working&&<span>LIVE RUN · {status||'working'}</span>}{error&&<div className="connectError">{error}</div>}</div>
     <div className="compareGrid">
       <article className="genericCompare"><div className="eyebrow">ASK AI</div><h2>Context-free comparison</h2><p>Not generated yet. The current iXo run API does not expose a verifiable “memory off” mode. This product will not pretend a memory-aware agent is generic.</p><div className="trustBadge">HELD BACK FOR TRUST</div></article>
-      <article className="personalCompare"><div className="eyebrow">ASK MY iXo</div>{result?<><h2>{String(result.answer||result.summary||'')}</h2>
+      <article className="personalCompare"><div className="eyebrow">ASK MY iXo · GROUNDED REASONING</div>{result?<><h2>{String(result.answer||result.summary||'')}</h2>
         <div className="contextDelta"><b>{result.why_context_changed_answer?'Your personal context changed this answer.':'Personal context did not materially change this answer.'}</b>{result.why_context_changed_answer&&<p>{String(result.why_context_changed_answer)}</p>}</div>
         <Result title="PERSONAL CONTEXT USED" values={usedFacts.map(f=>f.category+': '+f.value)}/>
         <Result title="ASSUMPTIONS" values={arr(result.assumptions)}/>
