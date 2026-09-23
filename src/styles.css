@@ -66,3 +66,7 @@
 .derivationBadge{display:inline-block;font-size:8px;letter-spacing:.13em;color:#8f887d;border:1px solid var(--border);border-radius:999px;padding:5px 8px;margin-bottom:10px}
 .findingMeta{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
 .findingMeta .findingType{margin-bottom:0}
+
+.runAudit{margin:12px 0 16px;border:1px solid var(--border);border-radius:11px;padding:10px 12px;font-size:10px;line-height:1.5;color:#8f887d}
+.runAudit.warning{border-color:#84503d;color:#d3a38f;background:#6e382418}
+.runAudit.clean{border-color:#4c4a3e}
