@@ -39,7 +39,7 @@ export default function DecisionLab(){
       <button className="primary" disabled={working||!input.decision.trim()} onClick={analyze}>{working?'iXo is reasoning…':'Think this through →'}</button>
       {working&&<p className="liveStatus">LIVE RUN · {status||'working'}</p>}{error&&<div className="connectError">{error}</div>}
     </div>
-    <div className="decisionResult">{result?<><div className="eyebrow">STRUCTURED ANALYSIS</div><h2>{String(result.summary||'Decision context')}</h2>
+    <div className="decisionResult">{result?<><div className="eyebrow">APPLICATION REASONING · GROUNDED IN VERIFIED MEMORY</div><h2>{String(result.summary||'Decision context')}</h2>
       <ResultGroup title="KNOWN PERSONAL CONTEXT" values={arr(result.known_context)}/>
       <ResultGroup title="GOALS AFFECTED" values={arr(result.goals_affected)}/>
       <ResultGroup title="CONSTRAINTS" values={arr(result.constraints)}/>
