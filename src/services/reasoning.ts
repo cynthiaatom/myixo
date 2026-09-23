@@ -47,6 +47,7 @@ export async function waitForReasoning(job:ReasoningJob,onStatus?:(s:string)=>vo
     onStatus?.(status);
     if(status==='completed'){
       const result=parseResult(d.result??null);
+      result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];
       fetch('/api/ixo/run-status?run_id='+encodeURIComponent(job.run_id)+'&chat_id='+encodeURIComponent(job.chat_id)+'&cleanup=1',{cache:'no-store'}).catch(()=>{});
       return result;
     }
