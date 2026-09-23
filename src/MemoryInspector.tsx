@@ -97,8 +97,16 @@ export default function MemoryInspector({memory,setMemory,onClose}:{memory:Memor
   },[memory,filter]);
   const clarifyCount=memory.items.filter(x=>x.status==='needs_clarification').length;
 
-  const changed=(fact:MemoryFact)=>setMemory({...memory,items:memory.items.map(x=>x.id===fact.id?fact:x)});
-  const removed=(id:string)=>setMemory({...memory,items:memory.items.filter(x=>x.id!==id)});
+  const syncRevision=(next:MemoryPayload)=>{
+    setMemory(next);
+    fetch('/api/ixo/profile-status?ts='+Date.now(),{cache:'no-store'}).then(async r=>{
+      if(!r.ok)return;
+      const d=await r.json().catch(()=>({}));
+      setMemory({...next,profile_revision:Number(d.profile_revision||next.profile_revision),index_status:String(d.index_status||next.index_status)});
+    }).catch(()=>{});
+  };
+  const changed=(fact:MemoryFact)=>syncRevision({...memory,items:memory.items.map(x=>x.id===fact.id?fact:x)});
+  const removed=(id:string)=>syncRevision({...memory,items:memory.items.filter(x=>x.id!==id)});
 
   return <section className="memoryInspector">
     <div className="memoryHeader">
