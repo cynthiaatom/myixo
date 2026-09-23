@@ -71,5 +71,6 @@ export type ReasoningResult={
   what_would_change?:string[];
   clarifying_questions?:string[];
   why_context_changed_answer?:string|null;
+  runtime_tool_activity?:string[];
   [key:string]:unknown;
 };
