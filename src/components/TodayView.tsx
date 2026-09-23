@@ -11,13 +11,17 @@ export default function TodayView({memory,question,onMirror,onDecide}:{memory:Me
     try{
       const prevRevision=Number(localStorage.getItem('myixo:last_seen_profile_revision')||0);
       const prevAt=localStorage.getItem('myixo:last_seen_profile_at')||'';
-      if(prevRevision>0&&memory.profile_revision>prevRevision){
+      const latestAt=memory.items.reduce((max,x)=>new Date(x.updated_at).getTime()>new Date(max||0).getTime()?x.updated_at:max,'');
+      if(prevRevision===0){
+        localStorage.setItem('myixo:last_seen_profile_revision',String(memory.profile_revision));
+        localStorage.setItem('myixo:last_seen_profile_at',latestAt||new Date().toISOString());
+      }else if(memory.profile_revision>prevRevision){
         const changed=memory.items.filter(x=>!prevAt||new Date(x.updated_at).getTime()>new Date(prevAt).getTime()).sort((a,b)=>new Date(b.updated_at).getTime()-new Date(a.updated_at).getTime()).slice(0,4).map(x=>x.category+': '+x.value);
         setNotice({revision:memory.profile_revision,items:changed});
       }
     }catch{}
   },[memory]);
-  const markSeen=()=>{try{localStorage.setItem('myixo:last_seen_profile_revision',String(memory.profile_revision));localStorage.setItem('myixo:last_seen_profile_at',new Date().toISOString())}catch{}setNotice(null)};
+  const markSeen=()=>{try{localStorage.setItem('myixo:last_seen_profile_revision',String(memory.profile_revision));localStorage.setItem('myixo:last_seen_profile_at',memory.items.reduce((max,x)=>new Date(x.updated_at).getTime()>new Date(max||0).getTime()?x.updated_at:max,'')||new Date().toISOString())}catch{}setNotice(null)};
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">TODAY · MISSION CONTROL</div><h1>WHAT DESERVES MY <em>ATTENTION?</em></h1><p>Not everything. Only context that currently has a reason to deserve another look.</p></div>
     {notice&&<div className="noticeCard"><div><span>iXo NOTICED SOMETHING</span><h2>Your durable profile changed since the last revision you saw.</h2><p>This is on-return change detection from real profile revisions—not a background notification.</p>{notice.items.length>0&&<details><summary>Show changed memories</summary>{notice.items.map((x,i)=><p key={i}>{x}</p>)}</details>}</div><button onClick={markSeen}>Mark seen</button></div>}
