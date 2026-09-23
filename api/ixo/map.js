@@ -68,7 +68,15 @@ export default async function handler(req,res){
       sample_domains:sampleDomains,
       facts_type:Array.isArray(facts)?'array':typeof facts,
       facts_count:Array.isArray(facts)?facts.length:(facts&&typeof facts==='object'?Object.keys(facts).length:0),
-      sample_fact_shape:sampleFact
+      sample_fact_shape:sampleFact,
+      fact_domains:Array.isArray(facts)?[...new Set(facts.map(x=>x?.domain).filter(Boolean))].slice(0,30):[],
+      personal_map_type:Array.isArray(raw?.personal_map)?'array':typeof raw?.personal_map,
+      personal_map_keys:raw?.personal_map&&typeof raw.personal_map==='object'?Object.keys(raw.personal_map).slice(0,40):[],
+      personal_map_summary:raw?.personal_map&&typeof raw.personal_map==='object'
+        ?Object.fromEntries(Object.entries(raw.personal_map).slice(0,20).map(([k,v])=>[
+          k,Array.isArray(v)?{type:'array',count:v.length,first_shape:v[0]&&typeof v[0]==='object'?Object.keys(v[0]):typeof v[0]}:
+          (v&&typeof v==='object'?{type:'object',keys:Object.keys(v).slice(0,20)}:{type:typeof v,value:(typeof v==='string'&&v.length<80)?v:undefined})
+        ])):{}
     }));
   }catch{}
 
