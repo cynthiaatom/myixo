@@ -35,26 +35,39 @@ export function fromLiveMap(raw:any):MapState{
   values:['meaning','values'],environment:['environment']
  };
  const hit=new Set<string>();
- const add=(v:any)=>{const s=String(v||'').toLowerCase();for(const names of Object.values(aliases))if(names.includes(s))hit.add(s)};
- // Prefer actual saved/stable facts. A configured domain existing by itself is NOT coverage.
+ const aliasValues=new Set(Object.values(aliases).flat());
+ const add=(v:any)=>{
+  const s=String(v??'').trim().toLowerCase();
+  if(aliasValues.has(s))hit.add(s);
+ };
+ // Prefer actual saved/stable facts. The backend has used several shapes over
+ // time, so recursively recognize exact domain tokens without reading meaning
+ // out of free-form fact text.
  const visitFacts=(node:any,parentKey='')=>{
   if(node==null)return;
+  if(typeof node==='string'||typeof node==='number'||typeof node==='boolean'){
+   add(node);
+   return;
+  }
   if(Array.isArray(node)){for(const x of node)visitFacts(x,parentKey);return}
   if(typeof node!=='object')return;
-  const domain=node.domain||node.area||node.category;
-  if(domain)add(domain);
+  for(const key of ['domain','domain_id','domain_key','domain_name','area','area_id','category','category_id','bucket','topic']){
+   if((node as any)[key]!=null)add((node as any)[key]);
+  }
   for(const [k,v] of Object.entries(node)){
-   const kl=k.toLowerCase();
-   if(Object.values(aliases).some(names=>names.includes(kl))){
-    const nonEmpty=Array.isArray(v)?v.length>0:(v&&typeof v==='object'?Object.keys(v as any).length>0:Boolean(v));
-    if(nonEmpty)add(kl);
-   }
-   visitFacts(v,k);
+   const kl=k.trim().toLowerCase();
+   const nonEmpty=Array.isArray(v)?v.length>0:(v&&typeof v==='object'?Object.keys(v as any).length>0:Boolean(v));
+   if(aliasValues.has(kl)&&nonEmpty)add(kl);
+   if((kl.includes('domain')||kl.includes('area')||kl.includes('category'))&&typeof v==='string')add(v);
+   visitFacts(v,kl);
   }
  };
  visitFacts(raw?.facts,'facts');
  visitFacts(raw?.stable_facts,'stable_facts');
  visitFacts(raw?.profile_facts,'profile_facts');
+ visitFacts(raw?.confirmed_facts,'confirmed_facts');
+ visitFacts(raw?.memory?.facts,'memory.facts');
+ visitFacts(raw?.profile?.facts,'profile.facts');
  // Some backend versions return domain objects/dictionaries with explicit coverage or saved facts.
  const ds=raw?.domains;
  const entries=Array.isArray(ds)?ds:Object.entries(ds&&typeof ds==='object'?ds:{}).map(([id,v])=>({id,...(v&&typeof v==='object'?v:{value:v})}));
