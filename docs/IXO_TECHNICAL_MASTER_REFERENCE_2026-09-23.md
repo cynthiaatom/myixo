@@ -1390,3 +1390,45 @@ This reference should exist in at least three durable locations:
 
 
 When major iXo API discoveries are made, update all three copies rather than relying on chat history alone.
+
+## Implementation update — September 23, 2026
+
+### Build My iXo native integration refactor
+
+Implemented and verified in production:
+
+- **Native Personal Map** is now the source of truth. `/api/ixo/map` reads `/conversation/map` and returns native `personal_map` + revision. Production history scanning, invisible-message inspection, tool-result hunting, and `IXO_MAP_SHAPE` diagnostics were removed.
+- **Native adaptive briefing** is used for connected users through `/briefing/sessions/current`, `/briefing/sessions`, and `/briefing/questions/{question_id}/answers`. The old six-question flow remains only in Executive Demo mode.
+- **Profile synchronization** now waits on the returned `profile_revision` / `index_status` using `/profile/memory` before refreshing and animating the Personal Map.
+- **Automatic authentication refresh** is centralized in `lib/ixo-client.js`. On access-token 401, the server uses the HttpOnly refresh token with `/auth/refresh`, stores the rotated token pair, and retries once. Tokens remain inaccessible to browser JavaScript.
+- **SSE infrastructure** is implemented with short-lived `sse:<run_id>` stream tickets from `/auth/stream-ticket` and browser `EventSource` support for `/runs/{run_id}/events` when a run ID is available. Profile/index state drives the remaining live progress.
+- **Memory Inspector** is implemented directly on `/profile/memory`. It shows actual durable facts, backend categories, status, revision, updated time, `supersedes_id`, and provenance. It supports revision-safe updates and native deletion.
+- **Clarification Inbox** is driven only by real backend `status=needs_clarification` facts.
+- **Why does iXo know this?** uses `/conversation/sources/{kind}/{source_id}` rather than an LLM-generated explanation.
+- The UI intentionally does **not** invent contradiction scores, confidence values, or unsupported confirmation mutations.
+
+### Verified production state
+
+- Deployment: `dpl_GN5YVAdM9MFfnFQYWkDyAsNyx9nD`
+- Commit: `88691eae8b4bac58c34c4ae58788de680d998327`
+- Alias: `https://myixo.vercel.app`
+- Clean TypeScript + Vite production build verified before deployment validation.
+
+### Resulting connected architecture
+
+```text
+Login / automatic refresh
+→ native Personal Map
+→ native adaptive briefing
+→ native answer submission
+→ profile revision/index synchronization
+→ native Personal Map refresh
+→ exact visual change
+→ Memory Inspector / provenance / correction
+```
+
+Keep these concepts separate:
+
+1. **Personal Map** — where iXo has saved context.
+2. **Profile Memory** — the durable facts iXo currently stores about the user.
+3. **Provenance** — where each stored fact came from and how it can be audited/corrected.
