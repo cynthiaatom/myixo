@@ -62,3 +62,7 @@
 .noticeCard{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border:1px solid #8a6b35;border-radius:18px;padding:20px 22px;margin:0 0 18px;background:linear-gradient(120deg,#6c52231a,#171512)}
 .noticeCard span{font-size:9px;letter-spacing:.16em;color:var(--gold)}
 .noticeCard h2{font-size:21px;margin:8px 0}.noticeCard p{color:var(--muted);font-size:12px;line-height:1.55}.noticeCard details{margin-top:10px}.noticeCard summary{cursor:pointer;color:var(--gold2);font-size:10px}
+
+.derivationBadge{display:inline-block;font-size:8px;letter-spacing:.13em;color:#8f887d;border:1px solid var(--border);border-radius:999px;padding:5px 8px;margin-bottom:10px}
+.findingMeta{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+.findingMeta .findingType{margin-bottom:0}
