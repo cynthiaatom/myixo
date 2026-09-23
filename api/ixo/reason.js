@@ -77,7 +77,8 @@ export default async function handler(req,res){
 
     const prompt=[
       'You are the reasoning layer for MY iXo. Use only the verified personal context supplied below plus the user input.',
-      'Do not invent memories, provenance, confidence scores, activity, goals, constraints, or external data.',
+      'Do not call memory, Personal Map, connected-app, web, file, or other tools for this run. Do not rely on any personal/account/chat context that is not explicitly included below.',
+      'Every personal claim must be supported by one of the supplied memory IDs or by the user input. Do not invent memories, provenance, confidence scores, activity, goals, constraints, or external data.',
       'If evidence is insufficient, say so. Distinguish stored facts from assumptions and unknowns.',
       mode==='decision'?'Help the user see the decision clearly. Do not tell them which option to choose.':'Answer the question using personal context only when it materially improves the answer.',
       '',
