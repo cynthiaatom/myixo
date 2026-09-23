@@ -9,3 +9,31 @@
 .statusSteps .current span{border-color:var(--gold);color:var(--gold)}
 .statusSteps .complete{color:#bfb7aa}
 .statusSteps .complete span{border-color:#816a3b;color:var(--gold)}
+
+.memoryInspector{margin:46px 0 70px}
+.memoryTop{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:28px}
+.memoryTop>div{max-width:760px}.memoryTop p{color:var(--muted);line-height:1.7;margin:0}
+.memoryStats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0}
+.memoryStats div{border:1px solid var(--border);border-radius:16px;padding:18px;background:#1a1916}
+.memoryStats strong{display:block;color:var(--gold);font-family:Georgia,serif;font-size:30px}
+.memoryStats span{display:block;color:var(--muted);font-size:9px;letter-spacing:.16em;margin-top:5px}
+.memoryControls{display:flex;justify-content:space-between;gap:16px;align-items:center;margin:26px 0}
+.memoryTabs{display:flex;gap:8px;flex-wrap:wrap}.memoryTabs .selected{border-color:var(--gold);color:#fff;background:#5b47262b}
+.memoryControls input{min-width:280px;background:#12110f;border:1px solid var(--border);border-radius:999px;color:var(--text);padding:12px 16px;outline:none}
+.memoryControls input:focus{border-color:var(--gold)}
+.memoryGroup{margin-top:30px}.memoryGroup>h3{display:flex;align-items:center;gap:10px;font-size:16px;margin:0 0 12px}
+.memoryGroup>h3 span{font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:3px 7px}
+.memoryGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.memoryCard{border:1px solid var(--border);background:linear-gradient(145deg,#211f1a,#181714);border-radius:18px;padding:18px}
+.memoryMeta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:13px}
+.memoryBadge{font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:5px 8px;border:1px solid var(--border)}
+.memoryBadge.confirmed{color:#cfc6b8}.memoryBadge.clarify{color:var(--gold2);border-color:#80632f}.memoryBadge.review{color:#d9b19d;border-color:#704837}
+.memoryValue{font-size:15px;line-height:1.6;margin:0 0 16px;color:var(--text);white-space:pre-wrap}
+.memoryFoot{display:flex;gap:14px;flex-wrap:wrap;color:#7f796e;font-size:10px;margin-bottom:13px}
+.memoryActions{display:flex;gap:7px;flex-wrap:wrap}.memoryActions button{font-size:10px;padding:8px 11px}.memoryActions .danger{border-color:#704837;color:#d4a28d}
+.memoryEdit textarea{min-height:100px;margin:0 0 12px}
+.sourceBox{margin-top:14px;border-top:1px solid var(--border);padding-top:14px;color:var(--muted);font-size:12px;line-height:1.55}
+.sourceBox>b{display:block;color:var(--gold);font-size:9px;letter-spacing:.15em;margin-bottom:12px}
+.sourceBox span{color:#8d867a;font-size:9px;letter-spacing:.1em;text-transform:uppercase}.sourceBox p{margin:4px 0 12px;white-space:pre-wrap}
+.memoryEmpty{border:1px dashed var(--border);border-radius:18px;padding:32px;text-align:center;color:var(--muted)}
+@media(max-width:800px){.memoryStats{grid-template-columns:1fr 1fr}.memoryGrid{grid-template-columns:1fr}.memoryControls,.memoryTop{flex-direction:column}.memoryControls input{min-width:0;width:100%}}
