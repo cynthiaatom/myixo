@@ -1,140 +1,14 @@
-const BASE='https://api.ai.atqm.us/api/v1';
-const CATS=new Set(['psychology','health','relationships','family','work','finance','development','rest','values','environment']);
-const token=req=>{const m=(req.headers.cookie||'').match(/(?:^|; )ixo_access=([^;]+)/);return m?decodeURIComponent(m[1]):null};
-const headers=t=>({authorization:`Bearer ${t}`,'content-type':'application/json','X-UI-Locale':'en'});
-
-const findStructured=(node,depth=0)=>{
- if(node==null||depth>14)return null;
- if(typeof node==='string'){
-  const s=node.trim();
-  if(!s)return null;
-  const candidates=[s];
-  const first=s.indexOf('{'),last=s.lastIndexOf('}');
-  if(first>=0&&last>first)candidates.push(s.slice(first,last+1));
-  for(const text of candidates){
-   try{const parsed=JSON.parse(text);const hit=findStructured(parsed,depth+1);if(hit)return hit}catch{}
-  }
-  return null;
- }
- if(typeof node!=='object')return null;
- const rows=Array.isArray(node.categories)?node.categories:null;
- if(rows&&rows.some(x=>CATS.has(String(x?.id||''))))return node;
- for(const v of Object.values(node)){const hit=findStructured(v,depth+1);if(hit)return hit}
- return null;
-};
-const findKey=(node,key)=>{
- if(!node||typeof node!=='object')return null;
- if(typeof node[key]==='string')return node[key];
- for(const v of Object.values(node)){const x=findKey(v,key);if(x)return x}
- return null;
-};
-const structuredFromHistory=h=>{
- const items=Array.isArray(h?.items)?h.items:[];
- for(const item of items){
-  const events=Array.isArray(item?.events)?item.events:[];
-  for(let i=events.length-1;i>=0;i--){
-   const hit=findStructured(events[i]?.payload||events[i]);
-   if(hit)return hit;
-  }
- }
- return null;
-};
+import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
 
 export default async function handler(req,res){
- res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
- const t=token(req);if(!t)return res.status(401).json({error:'Not connected'});
- try{
-  const rawR=await fetch(BASE+'/conversation/map',{headers:headers(t),cache:'no-store'});
-  const raw=await rawR.json().catch(()=>({}));
-  if(!rawR.ok)return res.status(rawR.status).json({error:raw?.detail||'Could not load Personal Map'});
-
-  // Temporary privacy-safe diagnostics: log only field names, domain identifiers,
-  // and collection counts. Never log fact text or user content.
+  res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
+  if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
   try{
-    const ds=raw?.domains;
-    const facts=raw?.facts;
-    const sampleDomains=Array.isArray(ds)?ds.slice(0,12).map(d=>({
-      keys:d&&typeof d==='object'?Object.keys(d):[],
-      id:d?.id||d?.name||d?.domain||d?.key||null,
-      fact_count:Array.isArray(d?.facts)?d.facts.length:(d?.fact_count??d?.stable_count??null)
-    })):(ds&&typeof ds==='object'?Object.keys(ds).slice(0,20):[]);
-    const sampleFact=facts&&typeof facts==='object'
-      ?(Array.isArray(facts)?facts.slice(0,3).map(x=>x&&typeof x==='object'?Object.keys(x):typeof x):Object.keys(facts).slice(0,20))
-      :typeof facts;
-    console.log('IXO_MAP_SHAPE',JSON.stringify({
-      top:Object.keys(raw||{}),
-      domains_type:Array.isArray(ds)?'array':typeof ds,
-      domains_count:Array.isArray(ds)?ds.length:(ds&&typeof ds==='object'?Object.keys(ds).length:0),
-      sample_domains:sampleDomains,
-      facts_type:Array.isArray(facts)?'array':typeof facts,
-      facts_count:Array.isArray(facts)?facts.length:(facts&&typeof facts==='object'?Object.keys(facts).length:0),
-      sample_fact_shape:sampleFact,
-      fact_domains:Array.isArray(facts)?[...new Set(facts.map(x=>x?.domain).filter(Boolean))].slice(0,30):[],
-      personal_map_type:Array.isArray(raw?.personal_map)?'array':typeof raw?.personal_map,
-      personal_map_keys:raw?.personal_map&&typeof raw.personal_map==='object'?Object.keys(raw.personal_map).slice(0,40):[],
-      personal_map_summary:raw?.personal_map&&typeof raw.personal_map==='object'
-        ?Object.fromEntries(Object.entries(raw.personal_map).slice(0,20).map(([k,v])=>[
-          k,Array.isArray(v)?{type:'array',count:v.length,first_shape:v[0]&&typeof v[0]==='object'?Object.keys(v[0]):typeof v[0]}:
-          (v&&typeof v==='object'?{type:'object',keys:Object.keys(v).slice(0,20)}:{type:typeof v,value:(typeof v==='string'&&v.length<80)?v:undefined})
-        ])):{}
-    }));
-  }catch{}
-
-  const direct=findStructured(raw);if(direct)return res.status(200).json(direct);
-
-  // iXo's visible 10-area Personal Map is emitted by the continuous conversation
-  // as a structured tool result. Reuse the most recent one instead of guessing
-  // coverage from the lower-level 12-domain memory payload.
-  let open={};
-  try{
-   const or=await fetch(BASE+'/conversation/open',{method:'POST',headers:headers(t),cache:'no-store'});
-   open=await or.json().catch(()=>({}));
-   const inOpen=findStructured(open);if(inOpen)return res.status(200).json(inOpen);
-  }catch{}
-
-  const ids=[];
-  const openChat=findKey(open,'chat_id');if(openChat)ids.push(openChat);
-  try{
-   const ar=await fetch(BASE+'/chats/active',{headers:headers(t),cache:'no-store'});
-   const ad=await ar.json().catch(()=>({}));
-   if(ar.ok&&Array.isArray(ad?.chat_ids))ids.push(...ad.chat_ids);
-  }catch{}
-  // The real iXo Personal Map is normally produced inside a chat/tool result.
-  // Search the user's own chats for that request before falling back to recent chats.
-  for(const q of ['personal map','saved context','map']){
-   try{
-    const sr=await fetch(BASE+'/chats/search?q='+encodeURIComponent(q)+'&limit=50',{headers:headers(t),cache:'no-store'});
-    const sd=await sr.json().catch(()=>({}));
-    if(sr.ok&&Array.isArray(sd?.items))ids.push(...sd.items.map(x=>x?.chat?.id||x?.id||x?.chat_id).filter(Boolean));
-   }catch{}
+    const r=await ixoFetch(req,res,'/conversation/map',{method:'GET',headers:{'X-UI-Locale':'en'}});
+    const raw=await r.json().catch(()=>({}));
+    if(!r.ok)return res.status(r.status).json({error:errorDetail(raw)||'Could not load Personal Map'});
+    return res.status(200).json({personal_map:raw?.personal_map??null,revision:raw?.revision??null});
+  }catch{
+    return res.status(500).json({error:'Could not load Personal Map'});
   }
-  try{
-   const cr=await fetch(BASE+'/chats?limit=100&offset=0',{headers:headers(t),cache:'no-store'});
-   const cd=await cr.json().catch(()=>({}));
-   if(cr.ok&&Array.isArray(cd?.items))ids.push(...cd.items.map(x=>x?.id).filter(Boolean));
-  }catch{}
-
-  for(const chatId of [...new Set(ids)].slice(0,30)){
-   const hr=await fetch(BASE+`/chats/${chatId}/history?limit=50&offset=0&include_details=true`,{headers:headers(t),cache:'no-store'});
-   const h=await hr.json().catch(()=>({}));
-   if(hr.ok){
-    const structured=structuredFromHistory(h);
-    if(structured)return res.status(200).json(structured);
-   }
-   // Some backend versions persist tool results as message content rather than
-   // only as run events, so inspect those rows too.
-   try{
-    const mr=await fetch(BASE+`/chats/${chatId}/messages?limit=500&offset=0&visible_only=false`,{headers:headers(t),cache:'no-store'});
-    const md=await mr.json().catch(()=>({}));
-    if(mr.ok){
-     const hit=findStructured(md);
-     if(hit)return res.status(200).json(hit);
-    }
-   }catch{}
-  }
-
-  return res.status(200).json(raw);
- }catch{
-  return res.status(500).json({error:'Could not load Personal Map'});
- }
 }
