@@ -1432,3 +1432,135 @@ Keep these concepts separate:
 1. **Personal Map** — where iXo has saved context.
 2. **Profile Memory** — the durable facts iXo currently stores about the user.
 3. **Provenance** — where each stored fact came from and how it can be audited/corrected.
+
+
+## Personal Intelligence OS expansion — September 23, 2026
+
+A stable feature branch evolved Build My iXo beyond Personal Map/onboarding into the first working Personal Intelligence Operating System shell.
+
+### Foundation verification and correction
+
+Production runtime evidence from the connected account showed successful `/api/ixo/session`, `/api/ixo/map`, and `/api/ixo/memory` calls. The same logs showed native `GET /briefing/sessions/current` surfacing as 404 when no current briefing session existed. The application proxy now treats that upstream 404 as the honest empty state `{session:null}` rather than an application failure.
+
+### Product shell
+
+Connected navigation now supports:
+
+- ME — native Personal Map / adaptive briefing
+- MEMORY — durable Memory Inspector
+- TODAY — Mission Control / attention intelligence
+- MIRROR — evidence-backed “What am I not seeing?”
+- DECIDE — Decision Lab
+- ASK MY iXo — personalized grounded reasoning
+- TIMELINE — evolution of durable memory
+
+The product preserves one black/gold/cream visual language and explicitly labels application-derived intelligence separately from native iXo structures.
+
+### TODAY / Mission Control
+
+TODAY is intentionally sparse. It derives a maximum of a few attention items from verified context such as native `needs_clarification` profile-memory status, older stored memories, and the current native adaptive-briefing question. It can return silence. Every item carries a reusable explanation object containing known facts, application inference, unknowns, and evidence references.
+
+Application heuristic: confirmed memories older than 180 days are candidates for reconfirmation; age does not mean the memory is wrong.
+
+### MIRROR
+
+Current implemented evidence-backed finding types are:
+
+- MISSING INFORMATION
+- STALE ASSUMPTION
+- LOOSE END
+
+Sources are durable profile memory and explicit text from native `pending_facts` when present. The application does not currently manufacture contradiction, neglected-priority, dependency, or goal-conflict findings because the exact semantics of native hypotheses/variants/checks/verdicts have not yet been verified against a real payload.
+
+Application heuristic: a confirmed memory older than 365 days may be surfaced as a possible stale assumption, explicitly framed as a reconfirmation question rather than a claim that the fact is false.
+
+### Explain My iXo
+
+A reusable explanation drawer separates:
+
+- CONCLUSION / OBSERVATION
+- WHAT iXo KNOWS
+- WHAT iXo INFERRED
+- WHAT iXo DOESN'T KNOW
+- SOURCES
+- CORRECT MY iXo
+
+This is the inspectability layer for TODAY and MIRROR and is designed to be reused by DECIDE and ASK MY iXo.
+
+### Grounded native reasoning
+
+New server routes start short-lived native iXo agent runs for personalized reasoning. Before a run, the application reads durable profile memory and selects only a small lexically relevant subset. That verified subset is explicitly supplied to the run prompt with memory IDs. If no memory is relevant, the prompt says not to force personalization.
+
+Temporary reasoning chats are cleaned up after completed result retrieval where possible.
+
+### DECIDE / Decision Lab
+
+Decision Lab accepts:
+
+- decision
+- desired outcome
+- options
+- user-entered assumptions
+
+A native iXo run returns structured analysis for:
+
+- known personal context
+- goals affected
+- constraints
+- options/tradeoffs
+- assumptions
+- unknowns
+- risks/dependencies
+- what would change the analysis
+- minimum clarifying questions
+
+The prompt explicitly instructs iXo not to choose for the user.
+
+### ASK MY iXo
+
+The personalized side is implemented and returns:
+
+- answer
+- exact context_used memory IDs
+- assumptions
+- missing_information
+- why_context_changed_answer
+
+The UI only displays stored memories whose IDs the result identifies as materially used.
+
+The generic ASK AI side is intentionally held back. The current native run contract does not expose a verifiable “profile memory off” mode, so the application will not pretend that a normal iXo run is context-free merely because a prompt asks it to ignore memory.
+
+### iXo Noticed Something — first safe proof
+
+TODAY now supports on-return profile-change detection. The browser records the last native `profile_revision` and last-seen memory timestamp. If a later session sees a higher profile revision, the UI can say “iXo noticed something” and list only real durable memories updated since the previous seen point.
+
+This is explicitly **not** background monitoring or scheduled notification.
+
+### Native proactive trigger research
+
+The native trigger API is verified to support cron/run-at/webhook triggers, `allow_write_tools` (default false), monthly credit caps, max fires per day, prompt templates, enable/disable state, webhook filters, and fire history/cost.
+
+No production trigger was created. A true proactive NOTICE proof still requires a project context, account capability verification, strict read-only settings, low frequency, low credit cap, and a relevance gate that is allowed to produce no output.
+
+### Personal Intelligence Timeline
+
+Timeline is generated only from real profile-memory timestamps and `supersedes_id` relationships. Current event labels are Memory learned, Memory corrected, and Memory needs clarification. It is not chat history and does not invent historical events.
+
+### Hosting constraint discovered
+
+The current Vercel Hobby project allows at most 12 Serverless Functions per deployment. The feature branch initially exceeded that limit. The optional native intelligence context was therefore consolidated into the existing `/api/ixo/map?detail=intelligence` route instead of adding another function. The branch now deploys successfully at the 12-function limit.
+
+### Evidence-boundary documentation
+
+A dedicated architecture record now exists at:
+
+`docs/PERSONAL_INTELLIGENCE_OS_ARCHITECTURE.md`
+
+It classifies discoveries and features under:
+
+1. VERIFIED NATIVE iXo CAPABILITY
+2. APPLICATION-LEVEL FEATURE WE BUILT
+3. INFERENCE / HEURISTIC
+4. UNKNOWN / NEEDS VERIFICATION
+
+This distinction is part of the product architecture, not just documentation style.
