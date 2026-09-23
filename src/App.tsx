@@ -128,7 +128,13 @@ export default function App(){
   };
 
   const loadMemoryData=async()=>{
-    if(memory)return memory;
+    if(memory){
+      try{
+        const sr=await fetch('/api/ixo/profile-status?ts='+Date.now(),{cache:'no-store'});
+        const sd=await sr.json().catch(()=>({}));
+        if(sr.ok&&Number(sd.profile_revision||0)===Number(memory.profile_revision||0))return memory;
+      }catch{return memory}
+    }
     const all:any[]=[];
     let cursor='';
     let profileRevision=0,indexStatus='unknown';
@@ -263,6 +269,8 @@ export default function App(){
       await waitForProfile(Number(d.profile_revision||0),String(d.index_status||''));
       setProcessStep(2);
       const after=await fetchMap();
+      setMemory(null);
+      setNativeContext(null);
       const newAreas=changedAreas(before,after);
       setChanged(newAreas);
 
@@ -320,7 +328,7 @@ export default function App(){
 
     {stage==='demo'&&<section className="flow"><div className="panel">{phase==='thinking'?<div className="center"><div className="eyebrow">LIVE iXo STATUS</div><div className="statusSteps">{liveStatuses.map((s,i)=><div key={s} className={i<processStep?'complete':i===processStep?'current':''}><span>{i<processStep?'✓':i+1}</span><b>{s}</b></div>)}</div><div className="scan"/></div>:phase==='reveal'?<div className="center"><div className="eyebrow">PERSONAL MAP UPDATED</div><h2>{changed.length?('iXo added context to '+changed.length+' '+(changed.length===1?'area':'areas')):'Your answer added useful context to iXo'}</h2><div className="jump">{previousLabel} → {mapProgress(model).label}</div>{changed.length>0?<div className="learned">{changed.map(c=><div key={c}><b>{labels[c]}</b> · new saved context</div>)}</div>:<p className="helper">The answer was saved, but it did not create a newly covered Personal Map area. iXo can still use the context.</p>}<button className="primary" onClick={()=>setPhase('ask')}>Continue →</button></div>:<><div className="eyebrow">{questionLabel} · {progress.label} {model.mode==='areas'?'AREAS':'DIMENSIONS'} UNDERSTOOD</div>{currentPrompt?<><h2>{currentPrompt}</h2><p className="helper">{currentHelper}</p><div className="chips">{chips.map(c=><button key={c.id} onClick={()=>user?toggleOption(c.id):setAnswer(c.label)} className={(user?selected.includes(c.id):answer===c.label)?'selected':''}>{c.label}</button>)}</div>{(!user||question?.allow_custom!==false)&&<textarea value={answer} onChange={e=>setAnswer(e.target.value)} placeholder={currentPlaceholder}/>} {connectError&&<div className="connectError">{connectError}</div>}<div className="actions"><button className="primary" onClick={()=>user?sendNative(false):sendDemo()}>Send to iXo →</button>{user&&question?.allow_skip&&<button onClick={()=>sendNative(true)}>Skip</button>}{!user&&<button onClick={()=>{setDemoQi(Math.min(demoQi+1,questions.length-1));setAnswer('')}}>Skip</button>}</div></>:<div className="center"><div className="thinking">{session?.generation?.state==='generating'?'iXo is preparing your next question…':'No question is available yet.'}</div></div>}</>}</div><Map model={model} highlight={changed}/></section>}
 
-    {stage==='memory'&&memory&&<MemoryInspector memory={memory} setMemory={setMemory} onClose={()=>setStage('hero')}/>}
+    {stage==='memory'&&memory&&<MemoryInspector memory={memory} setMemory={m=>{setMemory(m);setNativeContext(null)}} onClose={()=>setStage('hero')}/>}
     {stage==='today'&&memory&&<TodayView memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')}/>}
     {stage==='mirror'&&memory&&<MirrorView memory={memory as any} nativeContext={nativeContext} onMemory={()=>openView('memory')} onDecide={()=>openView('decide')}/>}
     {stage==='decide'&&<DecisionLab/>}
