@@ -21,7 +21,7 @@ export default function Map({model,highlight=[]}:{model:PersonalMapModel,highlig
         return <g key={cat}>
           {R.map((rr,ai)=><path key={ai} d={path(a,b,rr[0],rr[1])}
             fill={known&&ai===1?'var(--gold)':'var(--raised)'}
-            fillOpacity={known&&ai===1?.82:.72}
+            fillOpacity={known&&ai===1 ? .82 : .72}
             stroke={known?'var(--gold2)':'var(--border)'}
             strokeOpacity={known?(ai===1?1:.55):1}
             className={hi.has(cat)&&known&&ai===1?'ignite':known&&ai===1?'breathe':'dim'}>
