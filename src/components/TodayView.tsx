@@ -11,7 +11,7 @@ const refs=(ids:unknown,facts:MemoryFact[]):EvidenceRef[]=>{
 };
 const explanation=(x:Item,facts:MemoryFact[]):Explanation=>({observation:String(x.observation||x.title||''),known:Array.isArray(x.known)?x.known:[],inferred:Array.isArray(x.inferred)?x.inferred:[],unknown:Array.isArray(x.unknown)?x.unknown:[],sources:refs(x.evidence_refs,facts)});
 
-export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPayload;question?:{id:string;text:string;reason?:string|null}|null;onMirror:()=>void;onDecide:()=>void}){
+export default function TodayView({memory,onMirror,onDecide,onVerificationRequired}:{memory:MemoryPayload;question?:{id:string;text:string;reason?:string|null}|null;onMirror:()=>void;onDecide:()=>void;onVerificationRequired:()=>void}){
   const [items,setItems]=useState<Item[]|null>(null);
   const [evidence,setEvidence]=useState<MemoryFact[]>([]);
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
@@ -32,7 +32,7 @@ export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPaylo
         if(!Array.isArray(result.items))throw new Error('TODAY returned an invalid result shape.');
         setItems(result.items as Item[]);setState('success');
       }finally{close()}
-    }catch(e:any){setError(e.message||'TODAY reasoning failed');setState('error')}
+    }catch(e:any){if(e?.code==='verified_email_required')onVerificationRequired();setError(e.message||'TODAY reasoning failed');setState('error')}
   };
   useEffect(()=>{if(autoStarted.current)return;autoStarted.current=true;void run()},[]);
 

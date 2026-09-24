@@ -9,7 +9,7 @@ export type ReasonSource='today'|'mirror'|'ask'|'decide'|'why'|'evidence'|'think
 export async function startReasoning(mode:'today'|'mirror'|'personalized'|'decision',input:{question?:string;decision?:string;desired_outcome?:string;options?:string[];assumptions?:string[]},reasonSource?:ReasonSource):Promise<ReasoningJob>{
   const r=await fetch('/api/ixo/reason',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode,reason_source:reasonSource||mode,...input})});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(d.error||'Could not start iXo reasoning');
+  if(!r.ok){const e:any=new Error(d.error||'Could not start iXo reasoning');e.code=d.code||null;throw e}
   return d as ReasoningJob;
 }
 

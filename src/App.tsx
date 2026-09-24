@@ -42,6 +42,12 @@ export default function App(){
   const [memory,setMemory]=useState<MemoryPayload|null>(null);
   const [memoryLoading,setMemoryLoading]=useState(false);
   const [nativeContext,setNativeContext]=useState<NativeIntelligenceContext|null>(null);
+  const [verifyOpen,setVerifyOpen]=useState(false);
+  const [contactEmail,setContactEmail]=useState('');
+  const [verifyStep,setVerifyStep]=useState<'email'|'code'>('email');
+  const [verifyCode,setVerifyCode]=useState('');
+  const [verifyBusy,setVerifyBusy]=useState(false);
+  const [verifyError,setVerifyError]=useState('');
   const eventSource=useRef<EventSource|null>(null);
 
   const progress=mapProgress(model);
@@ -123,6 +129,17 @@ export default function App(){
       setMapReady(false);
       setInitState(user?'ERROR':'AUTH_REQUIRED');
     }
+  };
+
+  const sendVerification=async()=>{
+    setVerifyBusy(true);setVerifyError('');
+    try{const r=await fetch('/api/ixo/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'request_verified_email',email:contactEmail})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not send verification code');setVerifyStep('code')}
+    catch(e:any){setVerifyError(e.message||'Could not send verification code')}finally{setVerifyBusy(false)}
+  };
+  const confirmVerification=async()=>{
+    setVerifyBusy(true);setVerifyError('');
+    try{const r=await fetch('/api/ixo/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'confirm_verified_email',code:verifyCode})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not confirm contact email');if(!d.verified_email_present||d.verified_email_required)throw new Error('iXo did not confirm the contact email.');setContactEmail('');setVerifyCode('');setVerifyStep('email');setVerifyOpen(false);try{await fetchMap();setInitState('READY')}catch{setMapReady(false);setInitState('PARTIAL')}}
+    catch(e:any){setVerifyError(e.message||'Could not confirm contact email')}finally{setVerifyBusy(false)}
   };
 
   const retryPersonalMap=async()=>{
@@ -354,7 +371,7 @@ export default function App(){
     {stage==='demo'&&<section className="flow"><div className="panel">{phase==='thinking'?<div className="center"><div className="eyebrow">LIVE iXo STATUS</div><div className="statusSteps">{liveStatuses.map((s,i)=><div key={s} className={i<processStep?'complete':i===processStep?'current':''}><span>{i<processStep?'✓':i+1}</span><b>{s}</b></div>)}</div><div className="scan"/></div>:phase==='reveal'?<div className="center"><div className="eyebrow">PERSONAL MAP UPDATED</div><h2>{changed.length?('iXo added context to '+changed.length+' '+(changed.length===1?'area':'areas')):'Your answer added useful context to iXo'}</h2><div className="jump">{previousLabel} → {mapProgress(model).label}</div>{changed.length>0?<div className="learned">{changed.map(c=><div key={c}><b>{labels[c]}</b> · new saved context</div>)}</div>:<p className="helper">The answer was saved, but it did not create a newly covered Personal Map area. iXo can still use the context.</p>}<button className="primary" onClick={()=>setPhase('ask')}>Continue →</button></div>:<><div className="eyebrow">{questionLabel} · {progress.label} {model.mode==='areas'?'AREAS':'DIMENSIONS'} UNDERSTOOD</div>{currentPrompt?<><h2>{currentPrompt}</h2><p className="helper">{currentHelper}</p><div className="chips">{chips.map(c=><button key={c.id} onClick={()=>user?toggleOption(c.id):setAnswer(c.label)} className={(user?selected.includes(c.id):answer===c.label)?'selected':''}>{c.label}</button>)}</div>{(!user||question?.allow_custom!==false)&&<textarea value={answer} onChange={e=>setAnswer(e.target.value)} placeholder={currentPlaceholder}/>} {connectError&&<div className="connectError">{connectError}</div>}<div className="actions"><button className="primary" onClick={()=>user?sendNative(false):sendDemo()}>Send to iXo →</button>{user&&question?.allow_skip&&<button onClick={()=>sendNative(true)}>Skip</button>}{!user&&<button onClick={()=>{setDemoQi(Math.min(demoQi+1,questions.length-1));setAnswer('')}}>Skip</button>}</div></>:<div className="center"><div className="thinking">{session?.generation?.state==='generating'?'iXo is preparing your next question…':'No question is available yet.'}</div></div>}</>}</div><Map model={model} highlight={changed}/></section>}
 
     {stage==='memory'&&memory&&<MemoryInspector memory={memory} setMemory={m=>{setMemory(m);setNativeContext(null)}} onClose={()=>setStage('hero')}/>}
-    {stage==='today'&&memory&&<TodayView memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')}/>}
+    {stage==='today'&&memory&&<TodayView memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')} onVerificationRequired={()=>{setVerifyError('');setVerifyOpen(true)}}/>}
     {stage==='mirror'&&memory&&<MirrorView memory={memory as any} nativeContext={nativeContext} onMemory={()=>openView('memory')} onDecide={()=>openView('decide')}/>}
     {stage==='decide'&&<DecisionLab/>}
     {stage==='ask'&&<AskIxoView/>}
@@ -365,6 +382,7 @@ export default function App(){
     {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map →</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Use the same email and password you use for iXo. Your password is sent server-to-server to iXo for authentication and is not stored by this site.</p><div className="loginForm"><label>iXo email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting…':'Connect My iXo →'}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>← Back</button></>}</section>}
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory','Your answer is saved into iXo’s revisioned personal context.'],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
+    {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>iXo requires a verified contact email before it can run personal reasoning. This does not change your iXo login.</p>{verifyStep==='email'?<label>Contact email<input type="email" value={contactEmail} onChange={e=>setContactEmail(e.target.value)} autoComplete="email"/></label>:<label>Enter the 6-digit code<input inputMode="numeric" maxLength={6} value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g,'').slice(0,6))} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmail} onClick={sendVerification}>{verifyBusy?'Sending…':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||verifyCode.length!==6} onClick={confirmVerification}>{verifyBusy?'Confirming…':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Cancel</button></div></section></div>}
     <footer>{user?'MY iXo · Personal Intelligence Operating System':'MY iXo · Executive prototype · Synthetic demo data only'}</footer>
   </div></main>
 }
