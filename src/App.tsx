@@ -189,7 +189,7 @@ export default function App(){
   };
 
   const begin=async()=>{
-    if(!user){setStage('demo');return}
+    if(!user){setStage('connect');return}
     setConnectError('');
     try{
       const current=await ensureBriefing();
