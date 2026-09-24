@@ -186,7 +186,7 @@ export default function App(){
 
   const runLifecycleDiagnostic=async()=>{
     setDiagnosticLoading(true);setLifecycleDiagnostic(null);
-    try{const r=await fetch('/api/ixo/lifecycle-diagnostic?ts='+Date.now(),{cache:'no-store'});const d=await r.json().catch(()=>({}));setLifecycleDiagnostic(r.ok?d:{error:d.error||'Diagnostic failed'});}catch{setLifecycleDiagnostic({error:'Diagnostic failed'})}finally{setDiagnosticLoading(false)}
+    try{const r=await fetch('/api/ixo/source?diagnostic=lifecycle&ts='+Date.now(),{cache:'no-store'});const d=await r.json().catch(()=>({}));setLifecycleDiagnostic(r.ok?d:{error:d.error||'Diagnostic failed'});}catch{setLifecycleDiagnostic({error:'Diagnostic failed'})}finally{setDiagnosticLoading(false)}
   };
 
   const disconnect=async()=>{
