@@ -41,8 +41,6 @@ export default function App(){
   const [memory,setMemory]=useState<MemoryPayload|null>(null);
   const [memoryLoading,setMemoryLoading]=useState(false);
   const [nativeContext,setNativeContext]=useState<NativeIntelligenceContext|null>(null);
-  const [lifecycleDiagnostic,setLifecycleDiagnostic]=useState<any>(null);
-  const [diagnosticLoading,setDiagnosticLoading]=useState(false);
   const eventSource=useRef<EventSource|null>(null);
 
   const progress=mapProgress(model);
@@ -183,11 +181,6 @@ export default function App(){
   };
 
   const openMemory=async()=>openView('memory');
-
-  const runLifecycleDiagnostic=async()=>{
-    setDiagnosticLoading(true);setLifecycleDiagnostic(null);
-    try{const r=await fetch('/api/ixo/source?diagnostic=lifecycle&ts='+Date.now(),{cache:'no-store'});const d=await r.json().catch(()=>({}));setLifecycleDiagnostic(r.ok?d:{error:d.error||'Diagnostic failed'});}catch{setLifecycleDiagnostic({error:'Diagnostic failed'})}finally{setDiagnosticLoading(false)}
-  };
 
   const disconnect=async()=>{
     eventSource.current?.close();
@@ -349,7 +342,7 @@ export default function App(){
 
     {stage==='done'&&<section className="finish"><Map model={model} highlight={changed}/><div className="eyebrow">{user?'iXo BRIEFING COMPLETE':'PERSONAL MAP UPDATED'}</div><h2>{user?'Your iXo has a clearer picture of you.':'Your iXo knows more than it did 10 minutes ago.'}</h2><p>{user?(session?.completion_summary||'Your Personal Map will keep evolving as iXo learns from future conversations and connected context.'):'One continuously evolving understanding of you.'}</p><button className="primary" onClick={()=>setStage('hero')}>Return to My iXo →</button>{!user&&<button onClick={resetDemo}>Reset demo</button>}</section>}
 
-    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map →</button><button onClick={disconnect}>Disconnect</button><button disabled={diagnosticLoading} onClick={runLifecycleDiagnostic}>{diagnosticLoading?'Reading lifecycle…':'Run lifecycle diagnostic'}</button></div>{lifecycleDiagnostic&&<div className="runAudit"><b>SAFE LIFECYCLE DIAGNOSTIC</b><pre>{JSON.stringify(lifecycleDiagnostic,null,2)}</pre></div>}</>:<><h2>Sign in to your iXo</h2><p>Use the same email and password you use for iXo. Your password is sent server-to-server to iXo for authentication and is not stored by this site.</p><div className="loginForm"><label>iXo email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting…':'Connect My iXo →'}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>← Back</button></>}</section>}
+    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map →</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Use the same email and password you use for iXo. Your password is sent server-to-server to iXo for authentication and is not stored by this site.</p><div className="loginForm"><label>iXo email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting…':'Connect My iXo →'}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>← Back</button></>}</section>}
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory','Your answer is saved into iXo’s revisioned personal context.'],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
     <footer>{user?'MY iXo · Personal Intelligence Operating System':'MY iXo · Executive prototype · Synthetic demo data only'}</footer>
