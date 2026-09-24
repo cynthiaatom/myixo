@@ -42,7 +42,7 @@ function instructionFor(mode){if(mode==='today')return'CURRENT TASK = TODAY. Ans
 
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
- const mode=String(req.body?.mode||'').trim();if(!['today','mirror','personalized','decision'].includes(mode))return res.status(400).json({error:'Unsupported reasoning mode'});
+ const mode=String(req.body?.mode||'').trim();if(!['today','mirror','personalized','decision'].includes(mode))return res.status(400).json({error:'Unsupported reasoning mode'});\n const allowedSources=new Set(['today','mirror','ask','decide','why','evidence','think_through']);\n const requestedSource=String(req.body?.reason_source||mode).trim();\n const reasonSource=allowedSources.has(requestedSource)?requestedSource:mode;\n const log=(event,extra={})=>console.info(JSON.stringify({event,reason_source:reasonSource,mode,...extra}));
  const question=String(req.body?.question||req.body?.decision||'').trim();if(['personalized','decision'].includes(mode)&&!question)return res.status(400).json({error:'A question or decision is required'});
  try{
   const loaded=await loadMemory(req,res),desired=String(req.body?.desired_outcome||'').trim(),options=Array.isArray(req.body?.options)?req.body.options.map(String).filter(Boolean).slice(0,12):[],assumptions=Array.isArray(req.body?.assumptions)?req.body.assumptions.map(String).filter(Boolean).slice(0,20):[];
@@ -51,7 +51,7 @@ export default async function handler(req,res){
   const resolved=await resolvePersistentChat(req,res),chatId=String(resolved.chat.id);
   const ar=await ixoFetch(req,res,'/chats/active',{method:'GET'}),ad=await ar.json().catch(()=>({}));if(!ar.ok)throw new Error(errorDetail(ad)||'Could not inspect active iXo chats');
   const active=Array.isArray(ad.chat_ids)?ad.chat_ids.map(String):[];
-  if(active.includes(chatId))return res.status(409).json({error:'iXo is already processing in the persistent conversation.',code:'busy',state:'busy',chat_id:chatId,recoverable:true});
+  if(active.includes(chatId)){log('reason_busy',{http_status:409,active_target:true});return res.status(409).json({error:'iXo is already processing in the persistent conversation.',code:'busy',state:'busy',chat_id:chatId,recoverable:true})}
   const attempt=await startRun(req,res,chatId,prompt),rr=attempt.response,run=attempt.run;
   if(!rr.ok)return res.status(rr.status).json({error:errorDetail(run)||'Could not start iXo reasoning',code:run?.code||null,state:'reasoning_failed',chat_id:chatId,recoverable:rr.status===409});
   return res.status(202).json({run_id:run.id,chat_id:chatId,status:run.status,evidence,context_status:contextStatus,diagnostics:{persistent_chat_resolution:resolved.source,memory_count:loaded.items.length,selected_count:relevant.length,selected_ids:relevant.map(f=>String(f.id)),selected_category_counts:categoryCounts(relevant),category_counts:categoryCounts(loaded.items),profile_revision:loaded.profileRevision,index_status:loaded.indexStatus,active_chat_count_before_run:active.length}});
