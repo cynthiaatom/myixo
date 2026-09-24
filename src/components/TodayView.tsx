@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {EvidenceRef,Explanation,MemoryFact,MemoryPayload} from '../intelligence/types';
 import {openRunEvents,startReasoning,waitForReasoning} from '../services/reasoning';
 import ExplainPanel from './ExplainPanel';
@@ -17,12 +17,12 @@ export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPaylo
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
   const [status,setStatus]=useState('starting');
   const [error,setError]=useState('');
-  const [explain,setExplain]=useState<Explanation|null>(null);
+  const [explain,setExplain]=useState<Explanation|null>(null);\n  const autoStarted=useRef(false);
 
   const run=async()=>{
     setState('loading');setError('');setItems(null);setStatus('starting');
     try{
-      const job=await startReasoning('today',{});
+      const job=await startReasoning('today',{},'today');
       setEvidence(job.evidence||[]);
       if(job.context_status==='insufficient_context'){setItems([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
@@ -33,7 +33,7 @@ export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPaylo
       }finally{close()}
     }catch(e:any){setError(e.message||'TODAY reasoning failed');setState('error')}
   };
-  useEffect(()=>{run()},[memory.profile_revision]);
+  useEffect(()=>{if(autoStarted.current)return;autoStarted.current=true;void run()},[]);
 
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">TODAY · MISSION CONTROL</div><h1>WHAT DESERVES MY <em>ATTENTION?</em></h1><p>A real reasoning pass over a bounded set of durable iXo context. Silence is allowed, but failures are never presented as silence.</p></div>
