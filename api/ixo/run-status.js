@@ -12,7 +12,7 @@ export default async function handler(req,res){
     const r=await ixoFetch(req,res,'/runs/'+encodeURIComponent(runId),{method:'GET'});
     const run=await r.json().catch(()=>({}));
     if(!r.ok)return res.status(r.status).json({error:errorDetail(run)||'Could not read iXo run'});
-    const out={status:run.status,result:run.result??null,error:run.error??null,steps:run.steps??null,tool_activity:[]};
+    const out={status:run.status,result:run.result??null,error:run.error??null,steps:run.steps??null,tool_activity:[],result_source:run.result?'run_result':null};
     if(terminal(run.status)&&chatId){
       try{
         const mr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId)+'/messages?limit=500&offset=0&visible_only=false',{method:'GET'});
@@ -37,7 +37,7 @@ export default async function handler(req,res){
             const assistant=[...md.items].filter(m=>String(m?.role||'').toLowerCase()==='assistant'&&String(m?.content||'').trim());
             const sameRun=assistant.filter(m=>!m?.run_id||String(m.run_id)===runId);
             const last=(sameRun.length?sameRun:assistant).sort((a,b)=>Number(a?.seq||0)-Number(b?.seq||0)).at(-1);
-            if(last)out.result=String(last.content);
+            if(last){out.result=String(last.content);out.result_source='assistant_message_recovery';}
           }
         }
       }catch{}
@@ -45,6 +45,7 @@ export default async function handler(req,res){
         try{await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId),{method:'DELETE'})}catch{}
       }
     }
+    out.result_present=typeof out.result==='string'&&out.result.length>0;
     return res.status(200).json(out);
   }catch{
     return res.status(500).json({error:'Could not read iXo run'});
