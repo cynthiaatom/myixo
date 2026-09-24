@@ -379,3 +379,35 @@ CHAT
 → REASON WITH ME
 → NOTICE FOR ME
 → ACT WITH ME
+
+
+## Real-account acceptance debugging pass — September 23, 2026
+
+The first connected-account acceptance test established that native Personal Map and profile memory were working, while the application intelligence layer was not yet end-to-end trustworthy.
+
+Root causes found in code:
+- TODAY and MIRROR were deterministic local derivations and did not execute a reasoning run.
+- ASK and DECIDE created native runs, but the context selector was narrow lexical matching and execution conflicts were not represented as distinct product states.
+- A completed run could have useful assistant output in chat messages even when `run.result` was empty.
+- Malformed structured output could previously degrade into generic text and then look like a valid empty result.
+- Memory Inspector markup had drifted from its CSS class names, causing labels and values to visually run together.
+
+Acceptance branch changes:
+- `/api/ixo/reason` is the shared bounded reasoning entry point for TODAY, MIRROR, ASK and DECIDE.
+- The server loads profile memory privately, returns privacy-safe counts/revisions, and sends only a bounded selected subset into the reasoning prompt.
+- ASK/DECIDE require lexical relevance for durable-memory personalization. Recency/provenance only rank facts after a lexical match; they do not make unrelated facts relevant.
+- TODAY/MIRROR receive bounded cross-category coverage because they have no direct query, with unresolved/recent context prioritized.
+- Transient 409 run conflicts are retried by waiting only. The app does not cancel, hijack conversation-input, or touch native briefing/onboarding runs.
+- Execution failure, insufficient context, successful zero findings, and malformed output are separate UI states.
+- Evidence drawers show only stored memories whose IDs the structured result explicitly cites.
+- Completed-run output can be recovered from the matching assistant message if the native run result field is empty.
+- Memory Inspector spacing/readability was corrected without changing stored values.
+
+Still requires real-account validation before production acceptance:
+- Confirm native run behavior under an actual account-level active-run conflict.
+- Confirm TODAY and MIRROR return structured JSON under the real model/runtime.
+- Re-run the eFoil Decision Lab case.
+- Submit a personalized ASK question with a known relevant memory and verify the returned evidence IDs.
+- Confirm no native briefing/onboarding state is changed by these read-only reasoning runs.
+
+INZO naming is intentionally not part of this acceptance branch.
