@@ -42,7 +42,11 @@ function instructionFor(mode){if(mode==='today')return'CURRENT TASK = TODAY. Ans
 
 export default async function handler(req,res){
  res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
- const mode=String(req.body?.mode||'').trim();if(!['today','mirror','personalized','decision'].includes(mode))return res.status(400).json({error:'Unsupported reasoning mode'});\n const allowedSources=new Set(['today','mirror','ask','decide','why','evidence','think_through']);\n const requestedSource=String(req.body?.reason_source||mode).trim();\n const reasonSource=allowedSources.has(requestedSource)?requestedSource:mode;\n const log=(event,extra={})=>console.info(JSON.stringify({event,reason_source:reasonSource,mode,...extra}));
+ const mode=String(req.body?.mode||'').trim();if(!['today','mirror','personalized','decision'].includes(mode))return res.status(400).json({error:'Unsupported reasoning mode'});
+ const allowedSources=new Set(['today','mirror','ask','decide','why','evidence','think_through']);
+ const requestedSource=String(req.body?.reason_source||mode).trim();
+ const reasonSource=allowedSources.has(requestedSource)?requestedSource:mode;
+ const log=(event,extra={})=>console.info(JSON.stringify({event,reason_source:reasonSource,mode,...extra}));
  const question=String(req.body?.question||req.body?.decision||'').trim();if(['personalized','decision'].includes(mode)&&!question)return res.status(400).json({error:'A question or decision is required'});
  try{
   const loaded=await loadMemory(req,res),desired=String(req.body?.desired_outcome||'').trim(),options=Array.isArray(req.body?.options)?req.body.options.map(String).filter(Boolean).slice(0,12):[],assumptions=Array.isArray(req.body?.assumptions)?req.body.assumptions.map(String).filter(Boolean).slice(0,20):[];
