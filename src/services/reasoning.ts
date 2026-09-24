@@ -45,12 +45,12 @@ export async function waitForReasoning(job:ReasoningJob,onStatus?:(s:string)=>vo
     if(!r.ok)throw new Error(d.error||'Could not read iXo reasoning');
     const status=String(d.status||'').toLowerCase();
     onStatus?.(status);
-    if(status==='completed'){
+    if(status==='completed'||status==='finished'){
       const result=parseResult(d.result??null);
       result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];
-      fetch('/api/ixo/run-status?run_id='+encodeURIComponent(job.run_id)+'&chat_id='+encodeURIComponent(job.chat_id)+'&cleanup=1',{cache:'no-store'}).catch(()=>{});
       return result;
     }
+    if(['paused','waiting_for_input','requires_input','input_required'].includes(status))throw new Error('iXo reasoning is paused and requires user input.');
     if(['failed','cancelled','canceled'].includes(status))throw new Error(d.error||'iXo reasoning did not complete');
     await sleep(900);
   }
