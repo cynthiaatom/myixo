@@ -33,6 +33,12 @@ export default async function handler(req,res){
             if(String(m?.role||'').toLowerCase()==='tool'&&m?.name)names.add(String(m.name));
           }
           out.tool_activity=[...names].filter(Boolean).slice(0,30);
+          if((out.result==null||out.result==='')){
+            const assistant=[...md.items].filter(m=>String(m?.role||'').toLowerCase()==='assistant'&&String(m?.content||'').trim());
+            const sameRun=assistant.filter(m=>!m?.run_id||String(m.run_id)===runId);
+            const last=(sameRun.length?sameRun:assistant).sort((a,b)=>Number(a?.seq||0)-Number(b?.seq||0)).at(-1);
+            if(last)out.result=String(last.content);
+          }
         }
       }catch{}
       if(String(req.query?.cleanup||'')==='1'){
