@@ -20,7 +20,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
       setEvidence(job.evidence||[]);
       if(job.context_status==='insufficient_context'){setFindings([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
-      try{const result=await waitForReasoning(job,setStatus);setFindings(Array.isArray(result.findings)?result.findings as Finding[]:[]);setState('success')}finally{close()}
+      try{const result=await waitForReasoning(job,setStatus);if(!Array.isArray(result.findings))throw new Error('MIRROR returned an invalid result shape.');setFindings(result.findings as Finding[]);setState('success')}finally{close()}
     }catch(e:any){setError(e.message||'MIRROR reasoning failed');setState('error')}
   };
   useEffect(()=>{run()},[memory.profile_revision]);
