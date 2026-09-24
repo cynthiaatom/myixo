@@ -34,7 +34,7 @@ export function openRunEvents(runId:string,onStatus:(label:string)=>void){
 function parseResult(raw:string|null):ReasoningResult{
   if(!raw)return {};
   const s=raw.trim().replace(/^\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`$/,'');
-  try{return JSON.parse(s)}catch{return {answer:raw,summary:raw}}
+  try{return JSON.parse(s)}catch{throw new Error('iXo reasoning completed but returned an unreadable result. Please try again.')}
 }
 
 export async function waitForReasoning(job:ReasoningJob,onStatus?:(s:string)=>void,maxMs=90000):Promise<ReasoningResult>{
