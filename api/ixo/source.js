@@ -24,7 +24,7 @@ export default async function handler(req,res){
         if(rr.ok&&Array.isArray(rd?.items))for(const row of rd.items){const runId=safeId(row?.id);if(!runId)continue;const gr=await ixoFetch(req,res,'/runs/'+encodeURIComponent(runId),{method:'GET'}),gd=await readJson(gr);runs.push(gr.ok?publicRun(gd):{id:runId,status:'read_failed',http_status:gr.status,error_code:safeCode(gd?.code)})}
         chats.push({chat:cr.ok?publicChat(cd):{id:chatId,read_status:cr.status},runs});
       }
-      const br=await ixoFetch(req,res,'/briefing/sessions/current',{method:'GET',headers:{'X-UI-Locale':'en'}),bd=await readJson(br);
+      const br=await ixoFetch(req,res,'/briefing/sessions/current',{method:'GET',headers:{'X-UI-Locale':'en'}}),bd=await readJson(br);
       const briefing=br.ok&&bd?{id:safeId(bd.id),kind:safeCode(bd.kind),state:safeCode(bd.state),revision:Number.isFinite(bd.revision)?bd.revision:null,generation_state:safeCode(bd?.generation?.state),generation_retryable:typeof bd?.generation?.retryable==='boolean'?bd.generation.retryable:null}:br.status===404?null:{read_status:br.status,error_code:safeCode(bd?.code)};
       const dr=await ixoFetch(req,res,'/conversation/diagnostics',{method:'GET'}),dd=await readJson(dr);
       return res.status(200).json({captured_at:new Date().toISOString(),active_chat_ids:activeIds,chats,briefing,conversation_diagnostics:dr.ok?publicDiag(dd):{read_status:dr.status,error_code:safeCode(dd?.code)}});
