@@ -21,6 +21,7 @@ const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 export default function App(){
   const [model,setModel]=useState<PersonalMapModel>(demoPersonalMap);
+  const [mapReady,setMapReady]=useState(false);
   const [stage,setStage]=useState<Stage>('hero');
   const [demoQi,setDemoQi]=useState(0);
   const [answer,setAnswer]=useState('');
@@ -57,7 +58,7 @@ export default function App(){
     const data=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(data.error||'Could not load Personal Map');
     const parsed=parseNativePersonalMap(data);
-    setModel(parsed);
+    setModel(parsed);setMapReady(true);
     return parsed;
   };
 
@@ -184,7 +185,7 @@ export default function App(){
   const disconnect=async()=>{
     eventSource.current?.close();
     await fetch('/api/ixo/logout',{method:'POST'});
-    setUser(null);setSession(null);setMemory(null);setNativeContext(null);setEmail('');setPassword('');setModel(demoPersonalMap());setStage('hero');
+    setUser(null);setSession(null);setMemory(null);setNativeContext(null);setEmail('');setPassword('');setModel(demoPersonalMap());setMapReady(false);setStage('hero');
   };
 
   const begin=async()=>{
@@ -327,8 +328,8 @@ export default function App(){
   return <main><div className="veil"/><header><div className="logo"><span className="my">MY</span><span className="ixo">iXo</span></div><div className="demo">{user?'iXo CONNECTED':'EXECUTIVE DEMO'}</div></header><div className="wrap">
     {user&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
     {memoryLoading&&<div className="contextLoading">Loading your iXo context…</div>}
-    {stage==='hero'&&sessionChecking&&<section className="hero loadingHero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Syncing your real iXo context before showing your Personal Map.</p><div className="syncPill"><span/>Checking session · loading native Personal Map</div></div><div className="mapLoading"><div className="mapLoadingCore">MY<br/><b>iXo</b></div><p>SYNCING PERSONAL MAP</p></div></section>}
-    {stage==='hero'&&!sessionChecking&&<section className="hero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Turn what iXo knows about you into an intelligent personal operating system.</p><div className="stat"><strong>{progress.label}</strong><div><b>{progress.description}</b><p>{model.mode==='areas'?('iXo currently has saved context in '+progress.current+' of 10 Personal Map areas.'):('iXo currently understands '+progress.current+' of 30 context dimensions.')}</p></div></div><div className="actions"><button className="primary" disabled={briefingLoading} onClick={begin}>{briefingLoading?'Preparing iXo…':user?'Continue My Personal Map →':'Connect My iXo →'}</button><button onClick={()=>setStage('demo')}>Executive Demo</button>{user&&<button disabled={memoryLoading} onClick={openMemory}>{memoryLoading?'Loading Memory…':'Memory Inspector'}</button>}{user&&<button onClick={()=>setStage('connect')}>Connection</button>}</div><p className="note">The Personal Map shows where iXo has saved context. It is never a rating of your life.</p></div><Map model={model}/></section>}
+    {stage==='hero'&&(sessionChecking||(user&&!mapReady))&&<section className="hero loadingHero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Syncing your real iXo context before showing your Personal Map.</p><div className="syncPill"><span/>Checking session · loading native Personal Map</div></div><div className="mapLoading"><div className="mapLoadingCore">MY<br/><b>iXo</b></div><p>SYNCING PERSONAL MAP</p></div></section>}
+    {stage==='hero'&&!sessionChecking&&(!user||mapReady)&&<section className="hero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Turn what iXo knows about you into an intelligent personal operating system.</p><div className="stat"><strong>{progress.label}</strong><div><b>{progress.description}</b><p>{model.mode==='areas'?('iXo currently has saved context in '+progress.current+' of 10 Personal Map areas.'):('Executive demo: '+progress.current+' of 30 illustrative context dimensions.')}</p></div></div><div className="actions"><button className="primary" disabled={briefingLoading} onClick={begin}>{briefingLoading?'Preparing iXo…':user?'Continue My Personal Map →':'Connect My iXo →'}</button><button onClick={()=>setStage('demo')}>Executive Demo</button>{user&&<button disabled={memoryLoading} onClick={openMemory}>{memoryLoading?'Loading Memory…':'Memory Inspector'}</button>}{user&&<button onClick={()=>setStage('connect')}>Connection</button>}</div><p className="note">The Personal Map shows where iXo has saved context. It is never a rating of your life.</p></div><Map model={model}/></section>}
 
     {stage==='demo'&&<section className="flow"><div className="panel">{phase==='thinking'?<div className="center"><div className="eyebrow">LIVE iXo STATUS</div><div className="statusSteps">{liveStatuses.map((s,i)=><div key={s} className={i<processStep?'complete':i===processStep?'current':''}><span>{i<processStep?'✓':i+1}</span><b>{s}</b></div>)}</div><div className="scan"/></div>:phase==='reveal'?<div className="center"><div className="eyebrow">PERSONAL MAP UPDATED</div><h2>{changed.length?('iXo added context to '+changed.length+' '+(changed.length===1?'area':'areas')):'Your answer added useful context to iXo'}</h2><div className="jump">{previousLabel} → {mapProgress(model).label}</div>{changed.length>0?<div className="learned">{changed.map(c=><div key={c}><b>{labels[c]}</b> · new saved context</div>)}</div>:<p className="helper">The answer was saved, but it did not create a newly covered Personal Map area. iXo can still use the context.</p>}<button className="primary" onClick={()=>setPhase('ask')}>Continue →</button></div>:<><div className="eyebrow">{questionLabel} · {progress.label} {model.mode==='areas'?'AREAS':'DIMENSIONS'} UNDERSTOOD</div>{currentPrompt?<><h2>{currentPrompt}</h2><p className="helper">{currentHelper}</p><div className="chips">{chips.map(c=><button key={c.id} onClick={()=>user?toggleOption(c.id):setAnswer(c.label)} className={(user?selected.includes(c.id):answer===c.label)?'selected':''}>{c.label}</button>)}</div>{(!user||question?.allow_custom!==false)&&<textarea value={answer} onChange={e=>setAnswer(e.target.value)} placeholder={currentPlaceholder}/>} {connectError&&<div className="connectError">{connectError}</div>}<div className="actions"><button className="primary" onClick={()=>user?sendNative(false):sendDemo()}>Send to iXo →</button>{user&&question?.allow_skip&&<button onClick={()=>sendNative(true)}>Skip</button>}{!user&&<button onClick={()=>{setDemoQi(Math.min(demoQi+1,questions.length-1));setAnswer('')}}>Skip</button>}</div></>:<div className="center"><div className="thinking">{session?.generation?.state==='generating'?'iXo is preparing your next question…':'No question is available yet.'}</div></div>}</>}</div><Map model={model} highlight={changed}/></section>}
 
