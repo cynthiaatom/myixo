@@ -12,7 +12,8 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
   const [status,setStatus]=useState('starting');
   const [error,setError]=useState('');
-  const [explain,setExplain]=useState<Explanation|null>(null);\n  const autoStarted=useRef(false);
+  const [explain,setExplain]=useState<Explanation|null>(null);
+  const autoStarted=useRef(false);
   const run=async()=>{
     setState('loading');setError('');setFindings(null);setStatus('starting');
     try{
