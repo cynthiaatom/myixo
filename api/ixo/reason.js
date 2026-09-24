@@ -137,9 +137,18 @@ export default async function handler(req,res){
 
     const title='INZO · '+({today:'Today',mirror:'Mirror',personalized:'Ask',decision:'Decision Lab'}[mode]);
     const chat=await createChat(req,res,title);
-    const {response:rr,run}=await startRun(req,res,chat.id,prompt);
+    let attempt=await startRun(req,res,chat.id,prompt);
+    // A different account run can temporarily block creation. Waiting is safe; cancelling,
+    // hijacking conversation-input, or touching briefing/onboarding is not.
+    if(attempt.response.status===409){
+      for(let i=0;i<8&&attempt.response.status===409;i++){
+        await sleep(1250);
+        attempt=await startRun(req,res,chat.id,prompt);
+      }
+    }
+    const rr=attempt.response,run=attempt.run;
     if(!rr.ok){
-      // Do not disguise conflicts as zero findings. Preserve the chat so the user can inspect it.
+      // Never turn execution failure into an empty intelligence result.
       return res.status(rr.status).json({error:errorDetail(run)||'Could not start iXo reasoning',code:run?.code||null,chat_id:chat.id,recoverable:rr.status===409});
     }
     return res.status(202).json({
