@@ -4,8 +4,8 @@ const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 export type ReasoningJob={run_id:string;chat_id:string;evidence:MemoryFact[];status:string;context_status?:'ready'|'insufficient_context';diagnostics?:{memory_count:number;selected_count:number;category_counts:Record<string,number>;profile_revision:number;index_status:string}};
 
-export async function startReasoning(mode:'today'|'mirror'|'personalized'|'decision',input:{question?:string;decision?:string;desired_outcome?:string;options?:string[];assumptions?:string[]}):Promise<ReasoningJob>{
-  const r=await fetch('/api/ixo/reason',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode,...input})});
+export type ReasonSource='today'|'mirror'|'ask'|'decide'|'why'|'evidence'|'think_through';\n\nexport async function startReasoning(mode:'today'|'mirror'|'personalized'|'decision',input:{question?:string;decision?:string;desired_outcome?:string;options?:string[];assumptions?:string[]},reasonSource?:ReasonSource):Promise<ReasoningJob>{
+  const r=await fetch('/api/ixo/reason',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode,reason_source:reasonSource||mode,...input})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(d.error||'Could not start iXo reasoning');
   return d as ReasoningJob;
