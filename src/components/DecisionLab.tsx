@@ -21,7 +21,7 @@ export default function DecisionLab(){
     try{
       const next={...input,options:lines(optionsText),assumptions:lines(assumptionsText)};
       setInput(next);
-      const job=await startReasoning('decision',decisionPayload(next));
+      const job=await startReasoning('decision',decisionPayload(next),'think_through');
       setEvidence(job.evidence||[]);setContextState(job.context_status||'unknown');
       const close=openRunEvents(job.run_id,s=>setStatus(s));
       try{const next=await waitForReasoning(job,s=>setStatus(s));if(!String(next.summary||'').trim())throw new Error('Decision Lab returned an invalid result shape.');setResult(next)}finally{close()}
