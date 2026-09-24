@@ -34,17 +34,18 @@ function selectRelevant(memory,query,mode,max=24){
   const scored=memory.map((f,i)=>{
     const category=String(f.category||'other').toLowerCase();
     const ft=tokens(category+' '+(f.value||''));
-    let score=0;
-    for(const x of q)if(ft.has(x))score+=4;
-    if(q.has(category))score+=6;
+    let lexical=0;
+    for(const x of q)if(ft.has(x))lexical+=4;
+    if(q.has(category))lexical+=6;
+    let score=lexical;
     if(f.status==='needs_clarification')score+=mode==='mirror'||mode==='today'?7:2;
     if(f.source?.id)score+=1;
     const age=Math.max(0,(now-new Date(f.updated_at||0).getTime())/86400000);
     if(age<30)score+=3; else if(age<180)score+=2; else if(age<365)score+=1;
-    return {f,score,i,category};
+    return {f,score,lexical,i,category};
   });
   if(q.size){
-    const positive=scored.filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i);
+    const positive=scored.filter(x=>x.lexical>0).sort((a,b)=>b.score-a.score||a.i-b.i);
     return positive.slice(0,max).map(x=>x.f);
   }
   // TODAY/MIRROR have no user query. Give reasoning broad but bounded coverage:
