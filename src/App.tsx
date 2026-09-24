@@ -1,3 +1,5 @@
+[Reading 391 lines from start (total: 391 lines, 0 remaining)]
+
 import {useEffect,useRef,useState} from 'react';
 import Map from './Map';
 import MemoryInspector,{type MemoryPayload} from './MemoryInspector';
@@ -63,7 +65,7 @@ export default function App(){
   const fetchMap=async()=>{
     const r=await fetch('/api/ixo/map?ts='+Date.now(),{cache:'no-store'});
     const data=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(data.error||'Could not load Personal Map');
+    if(!r.ok){const e:any=new Error(data.error||'Could not load Personal Map');e.code=data.code||null;throw e}
     const parsed=parseNativePersonalMap(data);
     setModel(parsed);setMapReady(true);
     return parsed;
@@ -118,9 +120,10 @@ export default function App(){
       try{
         await fetchMap();
         setInitState('READY');
-      }catch{
+      }catch(e:any){
         setMapReady(false);
         setInitState('PARTIAL');
+        if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}
         return;
       }
       const current=await getBriefing().catch(()=>null);
@@ -131,7 +134,9 @@ export default function App(){
     }
   };
 
+  const contactEmailValid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim());
   const sendVerification=async()=>{
+    if(!contactEmailValid){setVerifyError('Enter a valid contact email.');return}
     setVerifyBusy(true);setVerifyError('');
     try{const r=await fetch('/api/ixo/session',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'request_verified_email',email:contactEmail})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not send verification code');setVerifyStep('code')}
     catch(e:any){setVerifyError(e.message||'Could not send verification code')}finally{setVerifyBusy(false)}
@@ -146,7 +151,7 @@ export default function App(){
     if(!user){setInitState('AUTH_REQUIRED');return}
     setInitState('LOADING');
     try{await fetchMap();setInitState('READY')}
-    catch{setMapReady(false);setInitState('PARTIAL')}
+    catch(e:any){setMapReady(false);setInitState('PARTIAL');if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}}
   };
 
   useEffect(()=>{restore();return()=>eventSource.current?.close()},[]);
@@ -159,7 +164,7 @@ export default function App(){
       if(!r.ok)throw new Error(d.error||'Could not connect');
       setUser(d.user);setPassword('');
       setInitState('LOADING');
-      try{await fetchMap();setInitState('READY')}catch{setMapReady(false);setInitState('PARTIAL');return}
+      try{await fetchMap();setInitState('READY')}catch(e:any){setMapReady(false);setInitState('PARTIAL');if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}return}
       const current=await getBriefing().catch(()=>null);
       if(current)setSession(current);
     }catch(e:any){setConnectError(e.message||'Could not connect to iXo')}
@@ -382,7 +387,9 @@ export default function App(){
     {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map →</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Use the same email and password you use for iXo. Your password is sent server-to-server to iXo for authentication and is not stored by this site.</p><div className="loginForm"><label>iXo email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting…':'Connect My iXo →'}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>← Back</button></>}</section>}
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory','Your answer is saved into iXo’s revisioned personal context.'],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
-    {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>iXo requires a verified contact email before it can run personal reasoning. This does not change your iXo login.</p>{verifyStep==='email'?<label>Contact email<input type="email" value={contactEmail} onChange={e=>setContactEmail(e.target.value)} autoComplete="email"/></label>:<label>Enter the 6-digit code<input inputMode="numeric" maxLength={6} value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g,'').slice(0,6))} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmail} onClick={sendVerification}>{verifyBusy?'Sending…':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||verifyCode.length!==6} onClick={confirmVerification}>{verifyBusy?'Confirming…':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Cancel</button></div></section></div>}
+    {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>This email is used only to satisfy iXo's contact verification requirement. It does not change your iXo login.</p>{verifyStep==='email'?<form className="verifyForm" onSubmit={e=>{e.preventDefault();if(!verifyBusy&&contactEmailValid)void sendVerification()}}><label>Contact email<input type="email" placeholder="name@example.com" value={contactEmail} onChange={e=>{setContactEmail(e.target.value);if(verifyError)setVerifyError('')}} autoComplete="email"/></label></form>:<label className="verifyField">Enter the 6-digit code<input inputMode="numeric" maxLength={6} value={verifyCode} onChange={e=>setVerifyCode(e.target.value.replace(/\D/g,'').slice(0,6))} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmailValid} onClick={sendVerification}>{verifyBusy?'Sending…':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||verifyCode.length!==6} onClick={confirmVerification}>{verifyBusy?'Confirming…':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Not now</button></div></section></div>}
     <footer>{user?'MY iXo · Personal Intelligence Operating System':'MY iXo · Executive prototype · Synthetic demo data only'}</footer>
   </div></main>
 }
+
+[executed on device: LAPTOP-C7JA37H3 (ca5e6962-4985-4da2-ab4f-f0a220b6d64a)]

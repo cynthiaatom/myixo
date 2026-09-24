@@ -1,3 +1,5 @@
+[Reading 25 lines from start (total: 25 lines, 0 remaining)]
+
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
 
 export default async function handler(req,res){
@@ -6,7 +8,7 @@ export default async function handler(req,res){
   try{
     const r=await ixoFetch(req,res,'/conversation/map',{method:'GET',headers:{'X-UI-Locale':'en'}});
     const raw=await r.json().catch(()=>({}));
-    if(!r.ok)return res.status(r.status).json({error:errorDetail(raw)||'Could not load Personal Map'});
+    if(!r.ok)return res.status(r.status).json({error:errorDetail(raw)||'Could not load Personal Map',code:raw?.code||raw?.detail?.code||null});
     if(String(req.query?.detail||'')==='intelligence'){
       return res.status(200).json({
         revision:raw?.revision??null,
@@ -23,3 +25,5 @@ export default async function handler(req,res){
     return res.status(500).json({error:'Could not load Personal Map'});
   }
 }
+
+[executed on device: LAPTOP-C7JA37H3 (ca5e6962-4985-4da2-ab4f-f0a220b6d64a)]
