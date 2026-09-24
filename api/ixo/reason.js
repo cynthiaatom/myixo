@@ -64,23 +64,10 @@ function selectRelevant(memory,query,mode,max=24){
   return chosen;
 }
 
-async function ensureReasoningProject(req,res){
-  const lr=await ixoFetch(req,res,'/projects?limit=200&offset=0',{method:'GET'});
-  const ld=await lr.json().catch(()=>({}));
-  if(!lr.ok)throw new Error(errorDetail(ld)||'Could not inspect reasoning projects');
-  const existing=Array.isArray(ld.items)?ld.items.find(p=>String(p?.name||'')==='MY iXo Reasoning'):null;
-  if(existing?.id)return existing;
-  const cr=await ixoFetch(req,res,'/projects',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
-    name:'MY iXo Reasoning',
-    instructions:'Dedicated MY iXo application reasoning workspace. Runs receive bounded selected durable profile context in their prompt. Do not use or modify native Personal Map or continuous-briefing conversations.'
-  })});
-  const cd=await cr.json().catch(()=>({}));
-  if(!cr.ok)throw new Error(errorDetail(cd)||'Could not create reasoning project');
-  return cd;
-}
-
-async function createChat(req,res,title,projectId){
-  const r=await ixoFetch(req,res,'/chats',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,project_id:projectId})});
+async function createChat(req,res,title){
+  // Dedicated chats provide isolation even when the account does not have
+  // iXo Projects enabled. Never reuse the native briefing/Personal Map chat.
+  const r=await ixoFetch(req,res,'/chats',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,project_id:null})});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(errorDetail(d)||'Could not create reasoning chat');
   return d;
@@ -152,14 +139,13 @@ export default async function handler(req,res){
     ].filter(Boolean).join('\n');
 
     const title='MY iXo · '+({today:'Today',mirror:'Mirror',personalized:'Ask',decision:'Decision Lab'}[mode]);
-    const project=await ensureReasoningProject(req,res);
     const activeR=await ixoFetch(req,res,'/chats/active',{method:'GET'});
     const activeD=await activeR.json().catch(()=>({}));
     if(!activeR.ok)throw new Error(errorDetail(activeD)||'Could not inspect active iXo chats');
     const activeChatIds=Array.isArray(activeD.chat_ids)?activeD.chat_ids.map(String):[];
-    const chat=await createChat(req,res,title,project.id);
+    const chat=await createChat(req,res,title);
     let attempt=await startRun(req,res,chat.id,prompt);
-    // A different account run can temporarily block creation. Waiting is safe; cancelling,
+    // Another account run can temporarily block creation. Waiting is safe; cancelling,
     // hijacking conversation-input, or touching briefing/onboarding is not.
     if(attempt.response.status===409){
       // The backend enforces an account-wide active-run constraint. A native
@@ -176,14 +162,14 @@ export default async function handler(req,res){
       const upstream=errorDetail(run)||'Could not start iXo reasoning';
       return res.status(rr.status).json({
         error:rr.status===409?'iXo is busy with another active conversation. This reasoning request was kept isolated and did not interrupt it.':upstream,
-        code:run?.code||null,chat_id:chat.id,project_id:project.id,recoverable:rr.status===409,
+        code:run?.code||null,chat_id:chat.id,recoverable:rr.status===409,
         conflict:rr.status===409?{active_chat_count:activeChatIds.length,reasoning_chat_is_active:activeChatIds.includes(String(chat.id)),upstream_code:run?.code||null,upstream_message:upstream}:null
       });
     }
     return res.status(202).json({
-      run_id:run.id,chat_id:chat.id,project_id:project.id,status:run.status,evidence,
+      run_id:run.id,chat_id:chat.id,status:run.status,evidence,
       context_status:contextStatus,
-      diagnostics:{memory_count:loaded.items.length,selected_count:relevant.length,selected_ids:relevant.map(f=>String(f.id)),selected_category_counts:categoryCounts(relevant),category_counts:categoryCounts(loaded.items),profile_revision:loaded.profileRevision,index_status:loaded.indexStatus,active_chat_count_before_run:activeChatIds.length,reasoning_project_id:project.id}
+      diagnostics:{memory_count:loaded.items.length,selected_count:relevant.length,selected_ids:relevant.map(f=>String(f.id)),selected_category_counts:categoryCounts(relevant),category_counts:categoryCounts(loaded.items),profile_revision:loaded.profileRevision,index_status:loaded.indexStatus,active_chat_count_before_run:activeChatIds.length}
     });
   }catch(e){
     return res.status(500).json({error:e instanceof Error?e.message:'Could not start iXo reasoning'});
