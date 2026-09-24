@@ -110,7 +110,7 @@ export default function App(){
       await fetchMap();
       const current=await getBriefing().catch(()=>null);
       if(current)setSession(current);
-    }catch{}
+    }catch{setMapReady(false)}
     finally{setSessionChecking(false)}
   };
 
