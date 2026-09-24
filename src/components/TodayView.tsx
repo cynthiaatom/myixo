@@ -17,7 +17,8 @@ export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPaylo
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
   const [status,setStatus]=useState('starting');
   const [error,setError]=useState('');
-  const [explain,setExplain]=useState<Explanation|null>(null);\n  const autoStarted=useRef(false);
+  const [explain,setExplain]=useState<Explanation|null>(null);
+  const autoStarted=useRef(false);
 
   const run=async()=>{
     setState('loading');setError('');setItems(null);setStatus('starting');
