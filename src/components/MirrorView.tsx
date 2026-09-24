@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {EvidenceRef,Explanation,MemoryFact,MemoryPayload,NativeIntelligenceContext} from '../intelligence/types';
 import {openRunEvents,startReasoning,waitForReasoning} from '../services/reasoning';
 import ExplainPanel from './ExplainPanel';
@@ -12,18 +12,18 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
   const [status,setStatus]=useState('starting');
   const [error,setError]=useState('');
-  const [explain,setExplain]=useState<Explanation|null>(null);
+  const [explain,setExplain]=useState<Explanation|null>(null);\n  const autoStarted=useRef(false);
   const run=async()=>{
     setState('loading');setError('');setFindings(null);setStatus('starting');
     try{
-      const job=await startReasoning('mirror',{});
+      const job=await startReasoning('mirror',{},'mirror');
       setEvidence(job.evidence||[]);
       if(job.context_status==='insufficient_context'){setFindings([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
       try{const result=await waitForReasoning(job,setStatus);if(!Array.isArray(result.findings))throw new Error('MIRROR returned an invalid result shape.');setFindings(result.findings as Finding[]);setState('success')}finally{close()}
     }catch(e:any){setError(e.message||'MIRROR reasoning failed');setState('error')}
   };
-  useEffect(()=>{run()},[memory.profile_revision]);
+  useEffect(()=>{if(autoStarted.current)return;autoStarted.current=true;void run()},[]);
   const explainFinding=(f:Finding):Explanation=>({observation:String(f.observation||''),known:Array.isArray(f.known)?f.known:[],inferred:Array.isArray(f.inferred)?f.inferred:[],unknown:Array.isArray(f.unknown)?f.unknown:[],sources:evidenceFor(f.evidence_refs,evidence)});
 
   return <section className="intelligenceView">
