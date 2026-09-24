@@ -13,6 +13,7 @@ export default function DecisionLab(){
   const [status,setStatus]=useState('');
   const [error,setError]=useState('');
   const [working,setWorking]=useState(false);
+  const [contextState,setContextState]=useState<'ready'|'insufficient_context'|'unknown'>('unknown');
 
   const analyze=async()=>{
     if(!input.decision.trim())return;
@@ -21,7 +22,7 @@ export default function DecisionLab(){
       const next={...input,options:lines(optionsText),assumptions:lines(assumptionsText)};
       setInput(next);
       const job=await startReasoning('decision',decisionPayload(next));
-      setEvidence(job.evidence||[]);
+      setEvidence(job.evidence||[]);setContextState(job.context_status||'unknown');
       const close=openRunEvents(job.run_id,s=>setStatus(s));
       try{setResult(await waitForReasoning(job,s=>setStatus(s)))}finally{close()}
     }catch(e:any){setError(e.message||'Could not analyze decision')}
@@ -37,7 +38,7 @@ export default function DecisionLab(){
       <label>OPTIONS · ONE PER LINE<textarea value={optionsText} onChange={e=>setOptionsText(e.target.value)} placeholder={'Option A\nOption B'}/></label>
       <label>ASSUMPTIONS YOU WANT TO TEST · ONE PER LINE<textarea value={assumptionsText} onChange={e=>setAssumptionsText(e.target.value)} placeholder={'This will require...\nI am assuming...'}/></label>
       <button className="primary" disabled={working||!input.decision.trim()} onClick={analyze}>{working?'iXo is reasoning…':'Think this through →'}</button>
-      {working&&<p className="liveStatus">LIVE RUN · {status||'working'}</p>}{error&&<div className="connectError">{error}</div>}
+      {working&&<p className="liveStatus">LIVE RUN · {status||'working'}</p>}{error&&<div className="connectError"><b>Decision analysis failed.</b><p>{error}</p><button onClick={analyze}>Try again</button></div>}{!working&&!error&&contextState==='insufficient_context'&&<div className="contextNotice">No relevant durable memory was selected. The analysis may still use your entered decision, outcome, options and assumptions, but it should not be treated as personalized.</div>}
     </div>
     <div className="decisionResult">{result?<><div className="eyebrow">APPLICATION REASONING · GROUNDED IN VERIFIED MEMORY</div><h2>{String(result.summary||'Decision context')}</h2>
       <div className={"runAudit "+((result.runtime_tool_activity||[]).length?'warning':'clean')}>{(result.runtime_tool_activity||[]).length?('Additional runtime tools were observed: '+(result.runtime_tool_activity||[]).join(', ')+'. Treat any unsupported personal detail cautiously.'):'No additional runtime tool calls were observed. The native runtime may still have system-level context that this app cannot independently inspect.'}</div>
