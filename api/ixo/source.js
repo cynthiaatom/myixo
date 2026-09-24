@@ -6,49 +6,38 @@ const safeTime=v=>typeof v==='string'&&v.length<=64?v:null;
 const safeId=v=>typeof v==='string'&&/^[0-9a-f-]{16,64}$/i.test(v)?v:null;
 const safeCode=v=>typeof v==='string'&&/^[a-z0-9_.:-]{1,80}$/i.test(v)?v:null;
 const readJson=async r=>r.json().catch(()=>({}));
-const publicRun=r=>({id:safeId(r?.id),chat_id:safeId(r?.chat_id),status:safeCode(r?.status),created_at:safeTime(r?.created_at),updated_at:safeTime(r?.updated_at),pending_human_input:['paused','waiting_input','requires_input','input_required'].includes(String(r?.status||'').toLowerCase()),error_code:safeCode(r?.error_code||r?.code)});
-const publicChat=c=>({id:safeId(c?.id),project_id:safeId(c?.project_id),created_at:safeTime(c?.created_at),updated_at:safeTime(c?.updated_at),trigger_label:safeCode(c?.trigger_label)});
+const publicRun=r=>({id:safeId(r?.id),status:safeCode(r?.status),created_at:safeTime(r?.created_at),updated_at:safeTime(r?.updated_at)});
 const publicDiag=d=>{if(!d||typeof d!=='object')return{};const allow=/^(state|status|type|kind|stage|phase|run_id|chat_id|session_id|request_id|revision|generation|generation_state|conversation_state)$/i,out={};for(const[k,v]of Object.entries(d)){if(!allow.test(k))continue;if(typeof v==='string'){if(/(_id|id)$/i.test(k)){const x=safeId(v);if(x)out[k]=x}else{const x=safeCode(v);if(x)out[k]=x}}else if(typeof v==='number'||typeof v==='boolean'||v===null)out[k]=v}return out};
+const safeBriefing=b=>!b||typeof b!=='object'?null:{id:safeId(b.id),state:safeCode(b.state),status:safeCode(b.status),created_at:safeTime(b.created_at),updated_at:safeTime(b.updated_at),revision:Number.isFinite(b.revision)?b.revision:null,generation_state:safeCode(b?.generation?.state||b?.generation_state)};
+const capabilityView=d=>({contract_version:safeCode(d?.contract_version),config_revision:Number.isFinite(d?.config_revision)?d.config_revision:null,features:{conversation:Boolean(d?.features?.conversation),conversation_verdicts:Boolean(d?.features?.conversation_verdicts),briefing:Boolean(d?.features?.briefing),profile_memory:Boolean(d?.features?.profile_memory),personal_map:Boolean(d?.features?.personal_map),personal_map_dialogue:Boolean(d?.features?.personal_map_dialogue),projects_ui:Boolean(d?.features?.projects_ui)},onboarding:{state:safeCode(d?.onboarding?.state),chat_allowed:Boolean(d?.onboarding?.chat_allowed),can_skip:Boolean(d?.onboarding?.can_skip)}});
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
   if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
   if(String(req.query?.diagnostic||'')==='lifecycle'){
-    const stamp=()=>new Date().toISOString();
-    const readState=async()=>{
+    try{
+      const cr=await ixoFetch(req,res,'/capabilities',{method:'GET'}),cd=await readJson(cr);
       const ar=await ixoFetch(req,res,'/chats/active',{method:'GET'}),ad=await readJson(ar);
       const br=await ixoFetch(req,res,'/briefing/sessions/current',{method:'GET',headers:{'X-UI-Locale':'en'}}),bd=await readJson(br);
       const dr=await ixoFetch(req,res,'/conversation/diagnostics',{method:'GET'}),dd=await readJson(dr);
-      return {
-        at:stamp(),
-        active:{http_status:ar.status,chat_ids:ar.ok&&Array.isArray(ad?.chat_ids)?ad.chat_ids.map(safeId).filter(Boolean):[],error_code:ar.ok?null:safeCode(ad?.code)},
-        briefing:br.ok&&bd?{id:safeId(bd.id),kind:safeCode(bd.kind),state:safeCode(bd.state),revision:Number.isFinite(bd.revision)?bd.revision:null,generation_state:safeCode(bd?.generation?.state)}:br.status===404?null:{http_status:br.status,error_code:safeCode(bd?.code)},
-        conversation_diagnostics:dr.ok?publicDiag(dd):{http_status:dr.status,error_code:safeCode(dd?.code)}
-      };
-    };
-    try{
-      const pre=await readState();
-      const cr=await ixoFetch(req,res,'/chats',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'MY iXo lifecycle diagnostic',project_id:null})}),cd=await readJson(cr);
-      const chatId=cr.ok?safeId(cd?.id):null;
-      const created={at:stamp(),http_status:cr.status,chat_id:chatId,project_id:cr.ok?safeId(cd?.project_id):null,error_code:cr.ok?null:safeCode(cd?.code)};
-      if(!cr.ok||!chatId)return res.status(200).json({pre_state:pre,create:created,start:null,post_state:null,interpretation:'Diagnostic chat creation did not succeed; no run was attempted.'});
-      const requestShape={prompt:'constant_nonpersonal_diagnostic',model_config_id:null,atomus_model_id:null,max_steps:1,adaptive_step_limit:false,attachment_ids:[],locale:'en'};
-      const rr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId)+'/runs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...requestShape,prompt:'Return exactly OK. Do not use tools.'})}),rd=await readJson(rr);
-      const rawMessage=typeof rd?.detail==='string'?rd.detail:typeof rd?.message==='string'?rd.message:null;
-      const start={at:stamp(),http_status:rr.status,run_id:rr.ok?safeId(rd?.id):null,status:rr.ok?safeCode(rd?.status):null,error_code:safeCode(rd?.code||rd?.error_code),error_type:safeCode(rd?.type||rd?.error_type),safe_message:rawMessage&&rawMessage.length<=240&&!/(bearer|token|password|cookie|authorization|prompt)/i.test(rawMessage)?rawMessage:null,response_meta:{content_type:safeCode((rr.headers.get('content-type')||'').split(';')[0]),request_id:safeId(rr.headers.get('x-request-id'))}};
-      const post=await readState();
-      const newActive=post.active.chat_ids.includes(chatId);
-      let new_chat_runs=[];
-      if(newActive){
-        const lr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId)+'/runs?limit=50&offset=0',{method:'GET'}),ld=await readJson(lr);
-        if(lr.ok&&Array.isArray(ld?.items))for(const row of ld.items){const id=safeId(row?.id);if(!id)continue;const gr=await ixoFetch(req,res,'/runs/'+encodeURIComponent(id),{method:'GET'}),gd=await readJson(gr);new_chat_runs.push(gr.ok?publicRun(gd):{id,http_status:gr.status,error_code:safeCode(gd?.code)})}
+      const lr=await ixoFetch(req,res,'/chats?limit=200&offset=0',{method:'GET'}),ld=await readJson(lr);
+      const rows=lr.ok&&Array.isArray(ld?.items)?ld.items:[];
+      const chats=[];
+      for(const row of rows){
+        const id=safeId(row?.id);if(!id)continue;
+        const rr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(id)+'/runs?limit=1&offset=0',{method:'GET'}),rd=await readJson(rr);
+        const latest=rr.ok&&Array.isArray(rd?.items)&&rd.items.length?publicRun(rd.items[0]):null;
+        chats.push({id,created_at:safeTime(row?.created_at),updated_at:safeTime(row?.updated_at),project_id:safeId(row?.project_id),has_runs:Boolean(latest),latest_run:latest,runs_http_status:rr.status});
       }
-      post.new_chat_runs=new_chat_runs;
       return res.status(200).json({
-        pre_state:pre,create:created,
-        start:{raw_ixo_response:start,request_contract:{content_type:'application/json',fields:{prompt:'string',model_config_id:null,atomus_model_id:null,max_steps:1,adaptive_step_limit:false,attachment_ids:0,locale:'en'},retry_count:0}},
-        post_state:post,
-        interpretation:rr.ok?'iXo accepted the single diagnostic run start.':'iXo rejected the single diagnostic run start; safe_message is literal upstream text when present.'
+        captured_at:new Date().toISOString(),
+        capabilities:cr.ok?capabilityView(cd):{http_status:cr.status,error_code:safeCode(cd?.code)},
+        chats_http_status:lr.status,
+        chats,
+        active:{http_status:ar.status,chat_ids:ar.ok&&Array.isArray(ad?.chat_ids)?ad.chat_ids.map(safeId).filter(Boolean):[],error_code:ar.ok?null:safeCode(ad?.code)},
+        briefing:br.ok?safeBriefing(bd):br.status===404?null:{http_status:br.status,error_code:safeCode(bd?.code)},
+        conversation_diagnostics:dr.ok?publicDiag(dd):{http_status:dr.status,error_code:safeCode(dd?.code)},
+        safety:{read_only:true,conversation_open_invoked:false,reset_invoked:false,chat_mutation:false,run_mutation:false}
       });
     }catch{return res.status(500).json({error:'Lifecycle diagnostic failed'})}
   }
