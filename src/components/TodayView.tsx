@@ -28,8 +28,8 @@ export default function TodayView({memory,onMirror,onDecide}:{memory:MemoryPaylo
       const close=openRunEvents(job.run_id,setStatus);
       try{
         const result=await waitForReasoning(job,setStatus);
-        const next=Array.isArray(result.items)?result.items as Item[]:[];
-        setItems(next);setState('success');
+        if(!Array.isArray(result.items))throw new Error('TODAY returned an invalid result shape.');
+        setItems(result.items as Item[]);setState('success');
       }finally{close()}
     }catch(e:any){setError(e.message||'TODAY reasoning failed');setState('error')}
   };
