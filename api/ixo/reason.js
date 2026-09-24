@@ -116,7 +116,7 @@ export default async function handler(req,res){
     const contextStatus=relevant.length?'ready':'insufficient_context';
 
     const prompt=[
-      'You are the bounded reasoning layer for the INZO application, using iXo as the underlying personal intelligence system.',
+      'You are the bounded reasoning layer for the MY iXo application, using iXo as the underlying personal intelligence system.',
       'Use only the verified personal context supplied below plus the user input. Do not call memory, Personal Map, connected-app, web, file, or other tools.',
       'Every personal claim must be supported by a supplied memory ID or explicit user input. Evidence refs MUST contain only memory IDs actually relied upon.',
       'Do not invent provenance, confidence scores, activity, goals, constraints, changes, urgency, or external data.',
@@ -136,7 +136,7 @@ export default async function handler(req,res){
       JSON.stringify(contractFor(mode))
     ].filter(Boolean).join('\n');
 
-    const title='INZO · '+({today:'Today',mirror:'Mirror',personalized:'Ask',decision:'Decision Lab'}[mode]);
+    const title='MY iXo · '+({today:'Today',mirror:'Mirror',personalized:'Ask',decision:'Decision Lab'}[mode]);
     const chat=await createChat(req,res,title);
     let attempt=await startRun(req,res,chat.id,prompt);
     // A different account run can temporarily block creation. Waiting is safe; cancelling,
