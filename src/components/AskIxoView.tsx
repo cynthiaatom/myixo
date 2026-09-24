@@ -18,7 +18,7 @@ export default function AskIxoView(){
       const job=await startReasoning('personalized',{question});
       setEvidence(job.evidence||[]);setContextState(job.context_status||'unknown');
       const close=openRunEvents(job.run_id,s=>setStatus(s));
-      try{setResult(await waitForReasoning(job,s=>setStatus(s)))}finally{close()}
+      try{const next=await waitForReasoning(job,s=>setStatus(s));if(!String(next.answer||next.summary||'').trim())throw new Error('ASK returned an invalid result shape.');setResult(next)}finally{close()}
     }catch(e:any){setError(e.message||'Could not ask iXo')}
     finally{setWorking(false)}
   };
