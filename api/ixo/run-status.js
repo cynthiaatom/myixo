@@ -1,5 +1,8 @@
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
 const terminal=s=>['completed','finished','failed','cancelled','canceled','paused','waiting_for_input','requires_input','input_required'].includes(String(s||'').toLowerCase());
+const failureCodes=new Set(['run_failed','result_missing','result_representation_invalid','result_schema_invalid','render_failed']);
+const modes=new Set(['today','mirror','personalized','decision']);
+const sources=new Set(['today','mirror','ask','decide','think_through','why','evidence']);
 
 async function resolvePersistentChatId(req,res){
  const cr=await ixoFetch(req,res,'/chats?limit=200&offset=0',{method:'GET'}),cd=await cr.json().catch(()=>({}));
@@ -37,9 +40,24 @@ async function runOutput(req,res,run,runId,chatId){
  out.result_present=typeof out.result==='string'&&out.result.length>0;
  return out;
 }
+function typeCategory(v){return v===null?'null':Array.isArray(v)?'array':typeof v}
+async function recordFailure(req,res){
+ const b=req.body&&typeof req.body==='object'?req.body:{};
+ const runId=String(b.run_id||'').trim(),code=String(b.code||''),mode=String(b.mode||''),source=String(b.source||'');
+ if(!runId||!failureCodes.has(code)||!modes.has(mode)||!sources.has(source))return res.status(400).json({error:'Invalid failure telemetry'});
+ const owned=await ownedRun(req,res,runId);if(owned.error)return res.status(owned.status).json({error:owned.message});
+ const clientStatus=typeof b.terminal_status==='string'?b.terminal_status.slice(0,40):null;
+ const duration=Number.isFinite(Number(b.duration_ms))?Math.max(0,Math.min(Number(b.duration_ms),300000)):null;
+ const present=typeof b.result_present==='boolean'?b.result_present:null;
+ const category=['string','object','array','null','undefined'].includes(String(b.result_type))?String(b.result_type):null;
+ console.info(JSON.stringify({event:'reasoning_failure',mode,reason_source:source,failure_code:code,run_id:runId,terminal_status:clientStatus||String(owned.run.status||''),result_present:present,result_type:category||typeCategory(owned.run.result),duration_ms:duration,timestamp:new Date().toISOString()}));
+ return res.status(204).end();
+}
 
 export default async function handler(req,res){
- res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
+ res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
+ if(req.method==='POST'){try{return await recordFailure(req,res)}catch{return res.status(500).json({error:'Could not record reasoning failure'})}}
+ if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  const runId=String(req.query?.run_id||'').trim(),chatId=String(req.query?.chat_id||'').trim();if(!runId)return res.status(400).json({error:'run_id is required'});
  if(String(req.query?.recover||'')==='completed'){
   try{

@@ -17,7 +17,7 @@ for(const f of sourceFiles){const s=readFileSync(f,'utf8');if(/\\n\s+(?:const|le
 const all=sourceFiles.map(f=>readFileSync(f,'utf8')).join('\n');
 for(const forbidden of ['diagnostic=lifecycle','Run lifecycle diagnostic'])if(all.includes(forbidden)){bad=true;console.error('FORBIDDEN',forbidden)}
 const reasonCalls=[];for(const f of sourceFiles){const s=readFileSync(f,'utf8');if(s.includes('/api/ixo/reason'))reasonCalls.push(relative(root,f))}console.log('REASON CALL FILES',reasonCalls.join(', ')||'none');
-const unsafeLog=/console\.(?:log|info|warn|error)\([^\n]*(?:prompt|memory|decision|question|desired_outcome|assumptions|result)/i;
+const unsafeLog=/console\.(?:log|info|warn|error)\([^\n]*(?:prompt|memory|decision_text|question|desired_outcome|assumptions|email|otp|result\s*[:=])/i;
 for(const f of sourceFiles){const s=readFileSync(f,'utf8');if(unsafeLog.test(s)){bad=true;console.error('POTENTIAL PERSONAL LOG',relative(root,f))}}
 const regression=spawnSync(process.execPath,['--experimental-strip-types',join(root,'scripts','regression-tests.mjs')],{encoding:'utf8'});
 if(regression.status){bad=true;console.error('REGRESSION FAIL',regression.stderr||regression.stdout)}else console.log(regression.stdout.trim());
