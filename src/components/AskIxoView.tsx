@@ -1,6 +1,12 @@
 import {useState} from 'react';
-import {openRunEvents,startReasoning,waitForReasoning} from '../services/reasoning';
+import {openRunEvents,rereadReasoning,startReasoning,waitForReasoning} from '../services/reasoning';
+import type {ReasoningJob} from '../services/reasoning';
 import type {MemoryFact,ReasoningResult} from '../intelligence/types';
+
+const validAskResult=(next:ReasoningResult)=>{
+  if(!String(next.answer||next.summary||'').trim())throw new Error('ASK returned an invalid result shape.');
+  return next;
+};
 
 export default function AskIxoView(){
   const [question,setQuestion]=useState('');
@@ -9,17 +15,30 @@ export default function AskIxoView(){
   const [working,setWorking]=useState(false);
   const [status,setStatus]=useState('');
   const [error,setError]=useState('');
+  const [recoverableJob,setRecoverableJob]=useState<ReasoningJob|null>(null);
   const [contextState,setContextState]=useState<'ready'|'insufficient_context'|'unknown'>('unknown');
 
   const ask=async()=>{
     if(!question.trim())return;
-    setWorking(true);setResult(null);setError('');setStatus('starting');
+    setWorking(true);setResult(null);setError('');setStatus('starting');setRecoverableJob(null);
+    let job:ReasoningJob|null=null;
     try{
-      const job=await startReasoning('personalized',{question},'ask');
+      job=await startReasoning('personalized',{question},'ask');
       setEvidence(job.evidence||[]);setContextState(job.context_status||'unknown');
       const close=openRunEvents(job.run_id,s=>setStatus(s));
-      try{const next=await waitForReasoning(job,s=>setStatus(s));if(!String(next.answer||next.summary||'').trim())throw new Error('ASK returned an invalid result shape.');setResult(next)}finally{close()}
-    }catch(e:any){setError(e.message||'Could not ask iXo')}
+      try{setResult(validAskResult(await waitForReasoning(job,s=>setStatus(s))))}finally{close()}
+    }catch(e:any){
+      const message=e.message||'Could not ask iXo';
+      setError(message);
+      if(job&&(message.includes('unreadable result')||message.includes('invalid result shape')))setRecoverableJob(job);
+    }finally{setWorking(false)}
+  };
+
+  const reread=async()=>{
+    if(!recoverableJob)return;
+    setWorking(true);setError('');setStatus('re-reading');
+    try{setResult(validAskResult(await rereadReasoning(recoverableJob)));setRecoverableJob(null)}
+    catch(e:any){setError(e.message||'Could not re-read the previous iXo result')}
     finally{setWorking(false)}
   };
 
@@ -29,7 +48,7 @@ export default function AskIxoView(){
 
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">ASK MY iXo</div><h1>WHAT CHANGES WHEN AI <em>KNOWS ME?</em></h1><p>Personal context is used only when it materially affects the reasoning.</p></div>
-    <div className="askComposer"><textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Ask something where your goals, constraints, priorities or situation could matter…"/><button className="primary" disabled={working||!question.trim()} onClick={ask}>{working?'My iXo is thinking…':'Ask My iXo →'}</button>{working&&<span>LIVE RUN · {status||'working'}</span>}{error&&<div className="connectError"><b>ASK reasoning failed.</b><p>{error}</p><button onClick={ask}>Try again</button></div>}{!working&&!error&&contextState==='insufficient_context'&&<div className="contextNotice">No relevant durable memory was selected. The answer can still be useful, but it is not being presented as personalized.</div>}</div>
+    <div className="askComposer"><textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Ask something where your goals, constraints, priorities or situation could matter…"/><button className="primary" disabled={working||!question.trim()} onClick={ask}>{working?'My iXo is thinking…':'Ask My iXo →'}</button>{working&&<span>LIVE RUN · {status||'working'}</span>}{error&&<div className="connectError"><b>ASK reasoning failed.</b><p>{error}</p>{recoverableJob?<button onClick={reread}>Re-read result</button>:<button onClick={ask}>Try again</button>}</div>}{!working&&!error&&contextState==='insufficient_context'&&<div className="contextNotice">No relevant durable memory was selected. The answer can still be useful, but it is not being presented as personalized.</div>}</div>
     <div className="compareGrid">
       <article className="genericCompare"><div className="eyebrow">ASK AI</div><h2>Context-free comparison</h2><p>Not generated yet. The current iXo run API does not expose a verifiable “memory off” mode. This product will not pretend a memory-aware agent is generic.</p><div className="trustBadge">HELD BACK FOR TRUST</div></article>
       <article className="personalCompare"><div className="eyebrow">ASK MY iXo · GROUNDED REASONING</div>{result?<><h2>{String(result.answer||result.summary||'')}</h2>

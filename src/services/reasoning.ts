@@ -1,4 +1,5 @@
 import type {DecisionInput,MemoryFact,ReasoningResult} from '../intelligence/types';
+import {normalizeReasoningResult} from './result-normalizer';
 
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
@@ -33,10 +34,20 @@ export function openRunEvents(runId:string,onStatus:(label:string)=>void){
   return ()=>{closed=true;es?.close()};
 }
 
-function parseResult(raw:string|null):ReasoningResult{
-  if(!raw)return {};
-  const s=raw.trim().replace(/^\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`$/,'');
-  try{return JSON.parse(s)}catch{throw new Error('iXo reasoning completed but returned an unreadable result. Please try again.')}
+function completedResult(d:any):ReasoningResult{
+  const result=normalizeReasoningResult(d.result??null);
+  result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];
+  return result;
+}
+
+export async function rereadReasoning(job:ReasoningJob):Promise<ReasoningResult>{
+  const q=new URLSearchParams({run_id:job.run_id,recover:'completed'});
+  const r=await fetch('/api/ixo/run-status?'+q.toString(),{cache:'no-store'});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||'Could not re-read iXo reasoning');
+  const status=String(d.status||'').toLowerCase();
+  if(status!=='completed'&&status!=='finished')throw new Error('The previous iXo reasoning result is not available to re-read.');
+  return completedResult(d);
 }
 
 export async function waitForReasoning(job:ReasoningJob,onStatus?:(s:string)=>void,maxMs=90000):Promise<ReasoningResult>{
@@ -47,11 +58,7 @@ export async function waitForReasoning(job:ReasoningJob,onStatus?:(s:string)=>vo
     if(!r.ok)throw new Error(d.error||'Could not read iXo reasoning');
     const status=String(d.status||'').toLowerCase();
     onStatus?.(status);
-    if(status==='completed'||status==='finished'){
-      const result=parseResult(d.result??null);
-      result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];
-      return result;
-    }
+    if(status==='completed'||status==='finished')return completedResult(d);
     if(['paused','waiting_for_input','requires_input','input_required'].includes(status))throw new Error('iXo reasoning is paused and requires user input.');
     if(['failed','cancelled','canceled'].includes(status))throw new Error(d.error||'iXo reasoning did not complete');
     await sleep(900);
