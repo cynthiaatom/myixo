@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {normalizeReasoningResult} from '../src/services/result-normalizer.ts';
@@ -6,7 +6,7 @@ import {validateReasoningResult,ReasoningSchemaError} from '../src/services/reas
 import {parseNativePersonalMap,mapProgress} from '../src/ixo.ts';
 
 const askGood={answer:'synthetic',context_used:[],assumptions:[],missing_information:[],why_context_changed_answer:null,evidence_refs:[]};
-const decideGood={summary:'synthetic',known_context:[],goals_affected:[],constraints:[],options:[],assumptions:[],unknowns:[],tradeoffs:[],risks_dependencies:[],what_would_change:[],clarifying_questions:[],evidence_refs:[]};
+const decideGood={summary:'synthetic',known_context:['synthetic known context'],goals_affected:[],constraints:[],options:[],assumptions:[],unknowns:[],tradeoffs:[],risks_dependencies:[],what_would_change:[],clarifying_questions:[],evidence_refs:[]};
 assert.equal(validateReasoningResult('decision',normalizeReasoningResult(JSON.stringify(decideGood))).summary,'synthetic');
 assert.equal(validateReasoningResult('decision',normalizeReasoningResult('```json\n'+JSON.stringify(decideGood)+'\n```')).summary,'synthetic');
 assert.equal(validateReasoningResult('decision',normalizeReasoningResult('wrapper\n'+JSON.stringify({...decideGood,summary:'brace } inside string'})+'\nend')).summary,'brace } inside string');
@@ -23,7 +23,7 @@ assert.deepEqual(validateReasoningResult('mirror',normalizeReasoningResult('{"fi
 const root=process.cwd(),read=f=>readFileSync(join(root,f),'utf8');
 const today=read('src/components/TodayView.tsx'),mirror=read('src/components/MirrorView.tsx'),ask=read('src/components/AskIxoView.tsx'),decide=read('src/components/DecisionLab.tsx'),reasoning=read('src/services/reasoning.ts'),reasonApi=read('api/ixo/reason.js'),runStatus=read('api/ixo/run-status.js'),session=read('api/ixo/session.js'),app=read('src/App.tsx'),css=read('src/styles.css'),timeline=read('src/components/TimelineView.tsx'),explain=read('src/components/ExplainPanel.tsx');
 
-assert.match(reasoning,/normalizeReasoningResult/);assert.match(reasoning,/validateReasoningResult/);
+assert.match(reasoning,/normalizeReasoningResult/);assert.match(reasoning,/validateReasoningResult/);assert.match(reasoning,/result_missing/);assert.match(reasoning,/run_failed/);assert.match(reasoning,/render_failed/);
 for(const [source,mode] of [[today,'today'],[mirror,'mirror'],[ask,'personalized'],[decide,'decision']])assert.match(source,new RegExp("waitForReasoning\\(job,'"+mode+"'"));
 assert.match(today,/autoStarted=useRef\(false\)/);assert.match(mirror,/autoStarted=useRef\(false\)/);
 assert.doesNotMatch(today,/profile_revision[^\n]*useEffect|useEffect[^\n]*profile_revision/);
@@ -32,14 +32,16 @@ assert.match(mirror,/useEffect\(\(\)=>\{if\(autoStarted\.current\)return;autoSta
 assert.match(ask,/onClick=\{ask\}/);assert.match(ask,/Try to restore answer/);assert.match(ask,/rereadReasoning\(recoverableJob,'personalized'\)/);
 assert.match(decide,/disabled=\{working\|\|!input\.decision\.trim\(\)\}/);assert.match(decide,/OPTIONAL/);
 assert.match(reasoning,/desired_outcome:input\.desiredOutcome,options:input\.options,assumptions:input\.assumptions/);
-assert.match(reasonApi,/decision text is sufficient input/);assert.match(reasonApi,/optional enrichment/);assert.match(reasonApi,/do not invent them as user-entered facts/);
+assert.match(reasonApi,/decision text is sufficient input/);assert.match(reasonApi,/optional enrichment/);assert.match(reasonApi,/do not invent them as user-entered facts/);assert.match(reasonApi,/A nonempty summary is required/);assert.match(reasonApi,/enrichment arrays may be omitted/);
 assert.match(runStatus,/req\.query\?\.recover\|\|''\)==='completed'/);assert.doesNotMatch(runStatus,/diagnostic/);assert.doesNotMatch(runStatus,/method:'POST'|method:'PATCH'|method:'DELETE'|conversation-input|\/cancel/);assert.doesNotMatch(runStatus,/console\./);
 assert.match(session,/\^\[0-9\]\{6\}\$/);assert.match(session,/confirmed:true/);assert.doesNotMatch(session,/verified_email_present/);
 const confirmBlock=app.slice(app.indexOf('const confirmVerification='),app.indexOf('const retryPersonalMap='));
 assert.equal((confirmBlock.match(/await fetchMap\(\)/g)||[]).length,1);assert.doesNotMatch(confirmBlock,/startReasoning|\/api\/ixo\/reason/);assert.match(app,/Not now/);
-for(const source of [app,today,mirror,ask,decide,timeline,explain])assert.doesNotMatch(source,/Ã|â€|Â|�/);
+for(const source of [app,today,mirror,ask,decide,timeline,explain])assert.doesNotMatch(source,/Ãƒ|Ã¢â‚¬|Ã‚|ï¿½/);
 for(const source of [today,mirror,ask,decide])assert.doesNotMatch(source,/LIVE RUN|runtime tool|tool calls|telemetry|parser|schema/i);
 for(const state of ['LOADING','READY','PARTIAL','AUTH_REQUIRED','ERROR'])assert.match(app,new RegExp(state));
 assert.match(css,/\.mirrorGrid\{display:grid;grid-template-columns:minmax\(0,1fr\)/);assert.match(css,/@media\(max-width:900px\)/);
 const nativeMap=parseNativePersonalMap({areas:[{id:'work',covered:true},{id:'family',covered:true},{id:'rest',covered:true},{id:'values',covered:true}]});assert.equal(nativeMap.covered.length,4);assert.equal(mapProgress(nativeMap).label,'4/10');assert.equal(nativeMap.source,'native');
 console.log('REGRESSION PASS: shared normalization/schema, DECIDE, lifecycle, verification, recovery, demo-copy and encoding gates passed.');
+
+

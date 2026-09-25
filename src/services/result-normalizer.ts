@@ -1,4 +1,4 @@
-import type {ReasoningResult} from '../intelligence/types';
+﻿import type {ReasoningResult} from '../intelligence/types';
 
 type Candidate={start:number;end:number;text:string};
 
@@ -43,6 +43,8 @@ function parsedObject(value:unknown):ReasoningResult|null{
   return value!==null&&typeof value==='object'&&!Array.isArray(value)?value as ReasoningResult:null;
 }
 
+export class ReasoningRepresentationError extends Error{code='result_representation_invalid';constructor(){super('iXo reasoning completed but returned an unreadable result. Please try again.');this.name='ReasoningRepresentationError'}}
+
 export function normalizeReasoningResult(raw:string|null):ReasoningResult{
   if(!raw)return {};
   const strict=currentResultPreprocess(raw);
@@ -59,5 +61,7 @@ export function normalizeReasoningResult(raw:string|null):ReasoningResult{
     const parsed=parsedObject(candidates[0].value);
     if(parsed)return parsed;
   }
-  throw new Error('iXo reasoning completed but returned an unreadable result. Please try again.');
+  throw new ReasoningRepresentationError();
 }
+
+

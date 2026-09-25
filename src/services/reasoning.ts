@@ -1,4 +1,4 @@
-import type {DecisionInput,MemoryFact,ReasoningResult} from '../intelligence/types';
+﻿import type {DecisionInput,MemoryFact,ReasoningResult} from '../intelligence/types';
 import {normalizeReasoningResult} from './result-normalizer';
 import {validateReasoningResult} from './reasoning-schema';
 import type {ReasoningMode} from './reasoning-schema';
@@ -36,8 +36,12 @@ export function openRunEvents(runId:string,onStatus:(label:string)=>void){
   return ()=>{closed=true;es?.close()};
 }
 
+function failure(code:string,message:string){const e:any=new Error(message);e.code=code;return e}
+function classifyFailure(e:any){if(e?.code)return e;return failure('render_failed',e?.message||'Could not process iXo reasoning')}
+
 function completedResult(d:any):ReasoningResult{
-  const result=normalizeReasoningResult(d.result??null);
+  if(d.result==null||d.result==='')throw failure('result_missing','iXo reasoning completed without a usable result.');
+  const result=normalizeReasoningResult(d.result);
   result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];
   return result;
 }
@@ -46,9 +50,9 @@ export async function rereadReasoning(job:ReasoningJob,mode:ReasoningMode):Promi
   const q=new URLSearchParams({run_id:job.run_id,recover:'completed'});
   const r=await fetch('/api/ixo/run-status?'+q.toString(),{cache:'no-store'});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(d.error||'Could not re-read iXo reasoning');
+  if(!r.ok)throw failure('run_failed',d.error||'Could not re-read iXo reasoning');
   const status=String(d.status||'').toLowerCase();
-  if(status!=='completed'&&status!=='finished')throw new Error('The previous iXo reasoning result is not available to re-read.');
+  if(status!=='completed'&&status!=='finished')throw failure('run_failed','The previous iXo reasoning result is not available to re-read.');
   return validateReasoningResult(mode,completedResult(d));
 }
 
@@ -57,12 +61,12 @@ export async function waitForReasoning(job:ReasoningJob,mode:ReasoningMode,onSta
   while(Date.now()-started<maxMs){
     const r=await fetch('/api/ixo/run-status?run_id='+encodeURIComponent(job.run_id)+'&chat_id='+encodeURIComponent(job.chat_id),{cache:'no-store'});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||'Could not read iXo reasoning');
+    if(!r.ok)throw failure('run_failed',d.error||'Could not read iXo reasoning');
     const status=String(d.status||'').toLowerCase();
     onStatus?.(status);
-    if(status==='completed'||status==='finished')return validateReasoningResult(mode,completedResult(d));
+    if(status==='completed'||status==='finished'){try{return validateReasoningResult(mode,completedResult(d))}catch(e:any){throw classifyFailure(e)}}
     if(['paused','waiting_for_input','requires_input','input_required'].includes(status))throw new Error('iXo reasoning is paused and requires user input.');
-    if(['failed','cancelled','canceled'].includes(status))throw new Error(d.error||'iXo reasoning did not complete');
+    if(['failed','cancelled','canceled'].includes(status))throw failure('run_failed',d.error||'iXo reasoning did not complete');
     await sleep(900);
   }
   throw new Error('iXo is still working. Try again in a moment.');
@@ -71,3 +75,6 @@ export async function waitForReasoning(job:ReasoningJob,mode:ReasoningMode,onSta
 export function decisionPayload(input:DecisionInput){
   return {decision:input.decision,desired_outcome:input.desiredOutcome,options:input.options,assumptions:input.assumptions};
 }
+
+
+
