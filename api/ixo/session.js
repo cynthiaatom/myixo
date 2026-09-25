@@ -14,7 +14,7 @@ export default async function handler(req,res){
     }
     if(action==='confirm_verified_email'){
       const code=String(req.body?.code||'').trim();
-      if(!/^\\d{6}$/.test(code))return res.status(400).json({error:'Enter the 6-digit verification code'});
+      if(!/^[0-9]{6}$/.test(code))return res.status(400).json({error:'Enter the 6-digit verification code'});
       const r=await ixoFetch(req,res,'/auth/verified-email/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)return res.status(r.status).json({error:errorDetail(d)||'Could not confirm contact email',code:d?.code||d?.detail?.code||null});
