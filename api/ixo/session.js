@@ -18,7 +18,7 @@ export default async function handler(req,res){
       const r=await ixoFetch(req,res,'/auth/verified-email/confirm',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)return res.status(r.status).json({error:errorDetail(d)||'Could not confirm contact email',code:d?.code||d?.detail?.code||null});
-      return res.status(200).json({verified_email_present:d?.verified_email!=null,verified_email_required:Boolean(d?.verified_email_required)});
+      return res.status(200).json({confirmed:true,verified_email_required:typeof d?.verified_email_required==='boolean'?d.verified_email_required:null});
     }
     return res.status(400).json({error:'Unsupported session action'});
   }
