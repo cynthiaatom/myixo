@@ -21,7 +21,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
       setEvidence(job.evidence||[]);
       if(job.context_status==='insufficient_context'){setFindings([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
-      try{const result=await waitForReasoning(job,setStatus);if(!Array.isArray(result.findings))throw new Error('MIRROR returned an invalid result shape.');setFindings(result.findings as Finding[]);setState('success')}finally{close()}
+      try{const result=await waitForReasoning(job,'mirror',setStatus);setFindings(result.findings as Finding[]);setState('success')}finally{close()}
     }catch(e:any){setError(e.message||'MIRROR reasoning failed');setState('error')}
   };
   useEffect(()=>{if(autoStarted.current)return;autoStarted.current=true;void run()},[]);
@@ -29,7 +29,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
 
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">iXo MIRROR</div><h1>WHAT AM I <em>NOT SEEING?</em></h1><p>A bounded reasoning pass for observable gaps, dependencies and conflicts. No mind-reading, diagnosis or manufactured certainty.</p></div>
-    {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Looking for supported blind spots…</h2><p>LIVE RUN · {status}</p></div>}
+    {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Looking for supported blind spots…</h2><p>{status==='starting'?'Thinking...':'Thinking...'}</p></div>}
     {state==='error'&&<div className="connectError"><b>MIRROR reasoning is unavailable.</b><p>{error}</p><button onClick={run}>Try again</button></div>}
     {state==='insufficient'&&<div className="quietState"><h2>There isn't enough relevant context to evaluate MIRROR yet.</h2><p>This is not the same as finding no blind spots.</p></div>}
     {state==='success'&&findings?.length===0&&<div className="quietState"><div className="quietOrb"/><h2>No meaningful blind spot was found.</h2><p>iXo evaluated the selected context and returned no supported finding.</p></div>}

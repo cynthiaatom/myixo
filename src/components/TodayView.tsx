@@ -28,8 +28,7 @@ export default function TodayView({memory,onMirror,onDecide,onVerificationRequir
       if(job.context_status==='insufficient_context'){setItems([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
       try{
-        const result=await waitForReasoning(job,setStatus);
-        if(!Array.isArray(result.items))throw new Error('TODAY returned an invalid result shape.');
+        const result=await waitForReasoning(job,'today',setStatus);
         setItems(result.items as Item[]);setState('success');
       }finally{close()}
     }catch(e:any){if(e?.code==='verified_email_required')onVerificationRequired();setError(e.message||'TODAY reasoning failed');setState('error')}
@@ -38,7 +37,7 @@ export default function TodayView({memory,onMirror,onDecide,onVerificationRequir
 
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">TODAY · MISSION CONTROL</div><h1>WHAT DESERVES MY <em>ATTENTION?</em></h1><p>A real reasoning pass over a bounded set of durable iXo context. Silence is allowed, but failures are never presented as silence.</p></div>
-    {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Evaluating what deserves your attention…</h2><p>LIVE RUN · {status}</p></div>}
+    {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Evaluating what deserves your attention…</h2><p>{status==='starting'?'Thinking...':'Thinking...'}</p></div>}
     {state==='error'&&<div className="connectError"><b>TODAY reasoning is unavailable.</b><p>{error}</p><button onClick={run}>Try again</button></div>}
     {state==='insufficient'&&<div className="quietState"><h2>There isn't enough relevant context to evaluate TODAY yet.</h2><p>This is different from a successful reasoning pass with no findings.</p></div>}
     {state==='success'&&items?.length===0&&<div className="quietState"><div className="quietOrb"/><h2>No meaningful attention items were found.</h2><p>iXo evaluated the selected context and returned no supported findings.</p></div>}
