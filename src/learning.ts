@@ -1,4 +1,4 @@
-import type {MemoryPayload} from './MemoryInspector';
+import type {MemoryPayload,MemoryFact} from './MemoryInspector';
 import {categories,labels,type CategoryId,type PersonalMapModel} from './ixo';
 export type KnowledgeType='fact'|'preference'|'goal'|'constraint'|'pattern'|'relationship'|'current_state'|'history'|'uncertainty'|'contradiction';
 export type LearningTarget={area:CategoryId;construct:string;knowledgeType:KnowledgeType;state:'unknown'|'weak'|'supported';reason:string;questionIntent:string;crossDomain:CategoryId[];burden:'low'|'medium';priority:number};
@@ -35,4 +35,19 @@ export function buildLearningPlan(model:PersonalMapModel,memory:MemoryPayload|nu
  targets.sort((a,b)=>b.priority-a.priority||a.area.localeCompare(b.area));const next=targets[0]||null;
  const topic=next?'Build my Personal Map adaptively. Focus the next question on '+labels[next.area]+' / '+next.construct+': '+next.questionIntent+'. Prefer one concrete, natural, low-burden question about a recent or typical real situation. It may also clarify '+(next.crossDomain.map(x=>labels[x]).join(', ')||'related context')+' when genuinely supported. Do not diagnose, do not ask a generic "what can I help with", do not ask multiple unrelated questions, and do not repeat information already known. Explain briefly why this question is useful.':'Continue learning only if there is a genuinely useful missing piece of personal context. Avoid generic questions and repetition.';
  return {targets,next,topic,summary:next?'Next best learning target: '+labels[next.area]+' · '+next.construct:'No high-value deterministic gap found.'};
+}
+export type LearningEvidenceKind='user_stated'|'inferred'|'needs_clarification'|'saved';
+export type LearningEvidence={id:string;kind:LearningEvidenceKind;label:string;value:string;category:string};
+export type LearningDelta={answer:string|null;items:LearningEvidence[];profileRevision:number;indexStatus:string};
+
+export function learningDelta(before:MemoryPayload|null,after:MemoryPayload|null,answer:string|null):LearningDelta{
+ const prior=new Map((before?.items||[]).map(x=>[x.id,x]));
+ const changed=(after?.items||[]).filter(x=>{const p=prior.get(x.id);return !p||p.revision!==x.revision||p.value!==x.value||p.status!==x.status});
+ const items:LearningEvidence[]=changed.slice(0,8).map((x:MemoryFact)=>{
+   const source=String(x.source?.kind||'').toLowerCase();
+   const kind:LearningEvidenceKind=x.status==='needs_clarification'?'needs_clarification':/(infer|hypoth|derived)/.test(source)?'inferred':'saved';
+   const label=kind==='needs_clarification'?'Needs clarification':kind==='inferred'?'Inferred by iXo':'Saved by iXo';
+   return {id:x.id,kind,label,value:x.value,category:x.category||'other'};
+ });
+ return {answer:answer?.trim()||null,items,profileRevision:Number(after?.profile_revision||0),indexStatus:String(after?.index_status||'unknown')};
 }
