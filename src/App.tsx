@@ -125,8 +125,8 @@ export default function App(){
         if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}
         return;
       }
-      const current=await getBriefing().catch(()=>null);
-      if(current)setSession(current);
+      // Personal Map readiness must not wait on briefing availability.
+      void getBriefing().then(current=>{if(current)setSession(current)}).catch(()=>{});
     }catch{
       setMapReady(false);
       setInitState(user?'ERROR':'AUTH_REQUIRED');
