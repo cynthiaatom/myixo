@@ -98,3 +98,5 @@
 
 .verifyOverlay{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:24px;background:#000b}.verifyPanel{width:min(560px,100%)}.verifyForm{margin:22px 0 16px}.verifyForm label,.verifyField{display:grid;gap:8px;color:var(--muted);font-size:12px;letter-spacing:.04em}.verifyForm input,.verifyField input{display:block;width:100%;min-height:48px;background:#12110f;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:13px 15px;font:inherit;line-height:1.4;opacity:1;visibility:visible;outline:none}.verifyForm input::placeholder{color:#777168}.verifyForm input:focus,.verifyField input:focus{border-color:var(--gold);box-shadow:0 0 0 1px #d9ad4b30}.verifyPanel button:disabled{opacity:.45;cursor:not-allowed;transform:none}
 
+
+.learningTarget{margin:0 0 22px;padding:14px 16px;border:1px solid #5c4a29;border-radius:14px;background:#6f54230d;display:grid;gap:6px}.learningTarget span{font-size:9px;letter-spacing:.16em;color:var(--gold)}.learningTarget b{font-family:Georgia,serif;font-size:17px;font-weight:400;color:var(--text)}.learningTarget p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
