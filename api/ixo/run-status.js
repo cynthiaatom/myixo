@@ -36,8 +36,21 @@ function extractStructuredResult(value){
  }
  return value;
 }
+function resultShape(value){
+ if(typeof value!=='string')return {type:value===null?'null':Array.isArray(value)?'array':typeof value};
+ const t=value.trim(),first=t[0]||'',last=t[t.length-1]||'';
+ const token=x=>x==='{'
+  ?'brace':x==='['?'bracket':x==='`'?'backtick':x==='"'?'double_quote':x==="'"?'single_quote':/[A-Za-z]/.test(x)?'letter':x?'other':'empty';
+ let parsed='invalid';
+ try{const v=JSON.parse(t);parsed=v===null?'null':Array.isArray(v)?'array':typeof v}catch{}
+ const firstBrace=t.indexOf('{'),lastBrace=t.lastIndexOf('}');
+ const bucket=n=>n<0?'none':n===0?'zero':n<=8?'1-8':n<=32?'9-32':n<=128?'33-128':'129+';
+ const nl=(t.match(/\\n/g)||[]).length;
+ return {type:'string',length_bucket:t.length<256?'<256':t.length<1024?'256-1023':t.length<4096?'1024-4095':'4096+',first_token:token(first),last_token:token(last),json_parse_type:parsed,starts_fence:/^\`\`\`/.test(t),contains_fence:t.includes('```'),first_brace_prefix_bucket:bucket(firstBrace),trailing_after_last_brace_bucket:bucket(lastBrace<0?-1:t.length-lastBrace-1),newline_bucket:nl<2?'<2':nl<8?'2-7':'8+'};
+}
 async function runOutput(req,res,run,runId,chatId){
  const status=String(run.status||'').toLowerCase(),out={status:run.status,result:extractStructuredResult(run.result??null),error:run.error??null,steps:run.steps??null,tool_activity:[],result_source:run.result?'run_result':null,input_required:['paused','waiting_for_input','requires_input','input_required'].includes(status)};
+ if(terminal(status)&&run.result!=null&&run.result!=='')console.info(JSON.stringify({event:'reason_result_shape',run_id:runId,status,result_shape:resultShape(run.result),timestamp:new Date().toISOString()}));
  if(terminal(status)&&chatId&&(out.result==null||out.result==='')){
   try{
    const mr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId)+'/messages?limit=500&offset=0&visible_only=false',{method:'GET'}),md=await mr.json().catch(()=>({}));
