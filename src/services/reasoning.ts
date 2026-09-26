@@ -36,15 +36,28 @@ export function openRunEvents(runId:string,onStatus:(label:string)=>void){
   (async()=>{try{const r=await fetch('/api/ixo/stream-ticket',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({run_id:runId})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.url||closed)return;es=new EventSource(d.url);es.onmessage=e=>{let t=e.data;try{const j=JSON.parse(e.data);t=String(j?.type||j?.event||j?.status||j?.name||e.data)}catch{}onStatus(t)};es.onerror=()=>{es?.close()}}catch{}})();
   return ()=>{closed=true;es?.close()};
 }
-function completedResult(d:any):ReasoningResult{
+function completedResult(d:any,mode:ReasoningMode):ReasoningResult{
   if(d.result==null||d.result==='')throw failure('result_missing','iXo reasoning completed without a usable result.');
-  const result=normalizeReasoningResult(d.result);result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];return result;
+  let result:ReasoningResult;
+  try{result=normalizeReasoningResult(d.result)}
+  catch(e:any){
+    // Native iXo RunRead.result is officially a string and can legitimately be
+    // plain prose even when a JSON-only response was requested. Preserve that
+    // completed reasoning instead of misclassifying it as an unavailable run.
+    const prose=typeof d.result==='string'?d.result.trim():'';
+    if(!prose)throw e;
+    if(mode==='today')result={items:[{title:'What iXo noticed',observation:prose,why_it_matters:prose,known:[],inferred:[],unknown:[],evidence_refs:[],next_question:''}]};
+    else if(mode==='mirror')result={findings:[{type:'OBSERVATION',observation:prose,why_noticed:'',known:[],inferred:[],unknown:[],evidence_refs:[],resolving_question:''}]};
+    else if(mode==='decision')result={summary:prose,unknowns:['Native iXo returned this analysis as prose rather than structured sections.']};
+    else result={answer:prose,context_used:[],assumptions:[],missing_information:[],why_context_changed_answer:null,evidence_refs:[]};
+  }
+  result.runtime_tool_activity=Array.isArray(d.tool_activity)?d.tool_activity:[];return result;
 }
 export async function rereadReasoning(job:ReasoningJob,mode:ReasoningMode):Promise<ReasoningResult>{
   const q=new URLSearchParams({run_id:job.run_id,recover:'completed'});const r=await fetch('/api/ixo/run-status?'+q.toString(),{cache:'no-store'});const d=await r.json().catch(()=>({}));
   if(!r.ok)throw failure('run_failed',d.error||'Could not re-read iXo reasoning');
   const status=String(d.status||'').toLowerCase();if(status!=='completed'&&status!=='finished')throw failure('run_failed','The previous iXo reasoning result is not available to re-read.');
-  return validateReasoningResult(mode,completedResult(d));
+  return validateReasoningResult(mode,completedResult(d,mode));
 }
 export async function waitForReasoning(job:ReasoningJob,mode:ReasoningMode,onStatus?:(s:string)=>void,maxMs=90000):Promise<ReasoningResult>{
   const started=Date.now(),source=job.reason_source||mode as ReasonSource;
@@ -55,7 +68,7 @@ export async function waitForReasoning(job:ReasoningJob,mode:ReasoningMode,onSta
       if(!r.ok)throw failure('run_failed',d.error||'Could not read iXo reasoning');
       const status=String(d.status||'').toLowerCase();onStatus?.(status);
       if(status==='completed'||status==='finished'){
-        try{return validateReasoningResult(mode,completedResult(d))}
+        try{return validateReasoningResult(mode,completedResult(d,mode))}
         catch(e:any){const classified=classifyFailure(e);await reportReasoningFailure(job,mode,source,classified,{terminal_status:status,result_present:typeof d.result==='string'&&d.result.length>0,result_type:typeCategory(d.result),duration_ms:Date.now()-started});throw classified}
       }
       if(['paused','waiting_for_input','requires_input','input_required'].includes(status))throw failure('run_failed','iXo reasoning is paused and requires user input.');
