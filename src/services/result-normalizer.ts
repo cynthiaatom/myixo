@@ -50,13 +50,21 @@ export function normalizeReasoningResult(raw:unknown):ReasoningResult{
   const alreadyStructured=parsedObject(raw);
   if(alreadyStructured)return alreadyStructured;
   if(typeof raw!=='string')throw new ReasoningRepresentationError();
-  const strict=currentResultPreprocess(raw);
-  try{
-    const parsed=parsedObject(JSON.parse(strict));
-    if(!parsed)throw new Error('structured result must be a JSON object');
-    return parsed;
-  }catch{}
-  const trimmed=raw.trim();
+  // Native runs can serialize a JSON result more than once (for example a JSON
+  // string whose value is the fenced/object JSON). Unwrap a small, deterministic
+  // number of string layers before falling back to balanced-object extraction.
+  let layer=raw;
+  for(let depth=0;depth<3;depth++){
+    const strict=currentResultPreprocess(layer);
+    try{
+      const decoded=JSON.parse(strict);
+      const parsed=parsedObject(decoded);
+      if(parsed)return parsed;
+      if(typeof decoded==='string'&&decoded!==layer){layer=decoded;continue}
+    }catch{}
+    break;
+  }
+  const trimmed=layer.trim();
   const candidates=balancedCandidates(trimmed)
     .map(c=>{try{return{...c,value:JSON.parse(c.text)}}catch{return null}})
     .filter((x):x is Candidate&{value:unknown}=>Boolean(x));
