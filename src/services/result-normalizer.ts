@@ -45,8 +45,11 @@ function parsedObject(value:unknown):ReasoningResult|null{
 
 export class ReasoningRepresentationError extends Error{code='result_representation_invalid';constructor(){super('iXo reasoning completed but returned an unreadable result. Please try again.');this.name='ReasoningRepresentationError'}}
 
-export function normalizeReasoningResult(raw:string|null):ReasoningResult{
+export function normalizeReasoningResult(raw:unknown):ReasoningResult{
   if(!raw)return {};
+  const alreadyStructured=parsedObject(raw);
+  if(alreadyStructured)return alreadyStructured;
+  if(typeof raw!=='string')throw new ReasoningRepresentationError();
   const strict=currentResultPreprocess(raw);
   try{
     const parsed=parsedObject(JSON.parse(strict));
