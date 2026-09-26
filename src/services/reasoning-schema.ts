@@ -28,9 +28,9 @@ export function validateReasoningResult(mode:ReasoningMode,result:ReasoningResul
  // DECIDE core: a meaningful summary plus at least one structured decision-analysis signal.
  // Enrichment sections are optional, but when present their types remain strict.
  if(!requiredString(result.summary))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
- const stringArrays=['known_context','goals_affected','constraints','assumptions','unknowns','risks_dependencies','what_would_change','clarifying_questions','evidence_refs'];
- for(const k of stringArrays)if(!optionalStringArray(result[k]))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
- for(const k of ['options','tradeoffs'])if(!optionalArray(result[k]))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
+ const analysisArrays=['known_context','goals_affected','constraints','options','assumptions','unknowns','tradeoffs','risks_dependencies','what_would_change','clarifying_questions'];
+ for(const k of analysisArrays)if(!optionalArray(result[k]))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
+ if(!optionalStringArray(result.evidence_refs))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
  const signalKeys=['known_context','goals_affected','constraints','options','assumptions','unknowns','tradeoffs','risks_dependencies','what_would_change','clarifying_questions'];
  if(!signalKeys.some(k=>Array.isArray(result[k])&&result[k].length>0))throw new ReasoningSchemaError('Decision Lab returned an invalid result shape.');
  return result;
