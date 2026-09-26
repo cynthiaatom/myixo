@@ -23,8 +23,21 @@ async function ownedRun(req,res,runId){
  if(String(run.chat_id||'')!==resolved.id)return{error:true,status:403,message:'Run is not owned by the authenticated persistent chat'};
  return{run,chatId:resolved.id};
 }
+function extractStructuredResult(value){
+ if(value&&typeof value==='object'&&!Array.isArray(value))return value;
+ if(typeof value!=='string')return value;
+ let layer=value.trim();
+ for(let depth=0;depth<3;depth++){
+  const unfenced=layer.replace(/^\`\`\`(?:json)?\\s*/i,'').replace(/\\s*\`\`\`$/,'').trim();
+  try{const decoded=JSON.parse(unfenced);if(decoded&&typeof decoded==='object'&&!Array.isArray(decoded))return decoded;if(typeof decoded==='string'){layer=decoded;continue}}catch{}
+  const first=unfenced.indexOf('{'),last=unfenced.lastIndexOf('}');
+  if(first>=0&&last>first){try{const decoded=JSON.parse(unfenced.slice(first,last+1));if(decoded&&typeof decoded==='object'&&!Array.isArray(decoded))return decoded}catch{}}
+  break;
+ }
+ return value;
+}
 async function runOutput(req,res,run,runId,chatId){
- const status=String(run.status||'').toLowerCase(),out={status:run.status,result:run.result??null,error:run.error??null,steps:run.steps??null,tool_activity:[],result_source:run.result?'run_result':null,input_required:['paused','waiting_for_input','requires_input','input_required'].includes(status)};
+ const status=String(run.status||'').toLowerCase(),out={status:run.status,result:extractStructuredResult(run.result??null),error:run.error??null,steps:run.steps??null,tool_activity:[],result_source:run.result?'run_result':null,input_required:['paused','waiting_for_input','requires_input','input_required'].includes(status)};
  if(terminal(status)&&chatId&&(out.result==null||out.result==='')){
   try{
    const mr=await ixoFetch(req,res,'/chats/'+encodeURIComponent(chatId)+'/messages?limit=500&offset=0&visible_only=false',{method:'GET'}),md=await mr.json().catch(()=>({}));
@@ -33,11 +46,11 @@ async function runOutput(req,res,run,runId,chatId){
     for(const m of md.items){if(String(m?.run_id||'')!==runId)continue;if(Array.isArray(m?.tool_calls)&&m.tool_calls.length)visit(m.tool_calls);if(String(m?.role||'').toLowerCase()==='tool'&&m?.name)names.add(String(m.name))}
     out.tool_activity=[...names].filter(Boolean).slice(0,30);
     const assistant=md.items.filter(m=>String(m?.run_id||'')===runId&&String(m?.role||'').toLowerCase()==='assistant'&&String(m?.content||'').trim()).sort((a,b)=>Number(a?.seq||0)-Number(b?.seq||0));
-    const last=assistant.at(-1);if(last){out.result=String(last.content);out.result_source='assistant_message_recovery'}
+    const last=assistant.at(-1);if(last){out.result=extractStructuredResult(String(last.content));out.result_source='assistant_message_recovery'}
    }
   }catch{}
  }
- out.result_present=typeof out.result==='string'&&out.result.length>0;
+ out.result_present=out.result!==null&&out.result!==undefined&&out.result!=='';
  return out;
 }
 function typeCategory(v){return v===null?'null':Array.isArray(v)?'array':typeof v}
