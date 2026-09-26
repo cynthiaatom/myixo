@@ -299,6 +299,7 @@ export default function App(){
     setConnectError('');setPhase('thinking');setProcessStep(0);
     try{
       const inputMethod=skipped?'skip':custom?'text':'choice';
+      const submittedAnswer=skipped?null:(custom||question.options.filter(o=>selected.includes(o.id)).map(o=>o.label).join('; ')||null);
       const r=await fetch('/api/ixo/answer',{
         method:'POST',
         headers:{'content-type':'application/json'},
@@ -325,7 +326,7 @@ export default function App(){
       const after=await fetchMap();
       setNativeContext(null);
       const refreshed=await loadMemoryData().catch(()=>null);
-      if(refreshed){setMemory(refreshed);setLearningPlan(buildLearningPlan(after,refreshed));setLastLearning(learningDelta(memoryBefore,refreshed,skipped?null:custom))}
+      if(refreshed){setMemory(refreshed);setLearningPlan(buildLearningPlan(after,refreshed));setLastLearning(learningDelta(memoryBefore,refreshed,submittedAnswer))}
       else setMemory(null);
       const newAreas=changedAreas(before,after);
       setChanged(newAreas);
