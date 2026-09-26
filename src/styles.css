@@ -100,3 +100,5 @@
 
 
 .learningTarget{margin:0 0 22px;padding:14px 16px;border:1px solid #5c4a29;border-radius:14px;background:#6f54230d;display:grid;gap:6px}.learningTarget span{font-size:9px;letter-spacing:.16em;color:var(--gold)}.learningTarget b{font-family:Georgia,serif;font-size:17px;font-weight:400;color:var(--text)}.learningTarget p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+
+.learningReceipt{margin:24px 0;text-align:left;border:1px solid #5c4a29;border-radius:16px;padding:16px;background:#16140f}.learningReceipt .eyebrow{margin-bottom:10px}.learningEvidence{padding:11px 0;border-top:1px solid var(--border)}.learningEvidence:first-of-type{border-top:0}.learningEvidence span{font-size:9px;letter-spacing:.13em;color:#918878;text-transform:uppercase}.learningEvidence p{margin:5px 0 0;color:#d8d0c2;font-size:12px;line-height:1.5}.learningEvidence.stated span{color:var(--gold2)}.learningEvidence.inferred span{color:#c5a76b}.learningEvidence.needs_clarification span{color:#d9b19d}.learningMeta{margin-top:10px;color:#756e63;font-size:9px;letter-spacing:.08em;text-transform:uppercase}
