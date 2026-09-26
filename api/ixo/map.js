@@ -1,5 +1,3 @@
-[Reading 25 lines from start (total: 25 lines, 0 remaining)]
-
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
 
 export default async function handler(req,res){
@@ -25,5 +23,3 @@ export default async function handler(req,res){
     return res.status(500).json({error:'Could not load Personal Map'});
   }
 }
-
-[executed on device: LAPTOP-C7JA37H3 (ca5e6962-4985-4da2-ab4f-f0a220b6d64a)]
