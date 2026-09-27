@@ -146,6 +146,40 @@ export function parseNativePersonalMap(payload:unknown):PersonalMapModel{
   };
 }
 
+
+export type KnowledgeDepth={overall:number;areas:Record<CategoryId,number>};
+const depthLex:Record<CategoryId,string[]>={
+ psychology:['stress','confidence','motivat','decision','overwhelm','control','focus','mood','mindset','emotion'],
+ health:['sleep','energy','exercise','health','medical','nutrition','pain','fatigue','workout','diet'],
+ relationships:['friend','relationship','partner','social','connection','support'],
+ family:['family','son','daughter','child','parent','husband','wife','caregiv','household'],
+ work:['work','job','career','business','project','client','company','role','launch','build'],
+ finance:['finance','money','income','budget','invest','cost','financial','saving','spend'],
+ development:['learn','skill','develop','growth','expert','training','course','improve','feedback'],
+ rest:['rest','downtime','recover','vacation','travel','hobby','relax','weekend','switch off'],
+ values:['value','matter','priority','meaning','important','principle','freedom','autonomy','purpose'],
+ environment:['home','location','environment','office','workspace','city','travel','routine','schedule']
+};
+const memoryArea=(category:string,value:string):CategoryId|null=>{
+ const direct=categoryOf(category);if(direct)return direct;
+ const text=(category+' '+value).toLowerCase();let best:CategoryId|null=null,bestHits=0;
+ for(const area of categories){const n=depthLex[area].reduce((sum,w)=>sum+(text.includes(w)?1:0),0);if(n>bestHits){best=area;bestHits=n}}
+ return bestHits?best:null;
+};
+export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{category?:string;value?:string;status?:string}>}|null):KnowledgeDepth{
+ const grouped=Object.fromEntries(categories.map(c=>[c,[] as Array<{value:string;status:string}>])) as Record<CategoryId,Array<{value:string;status:string}>>;
+ for(const item of memory?.items||[]){const area=memoryArea(String(item.category||''),String(item.value||''));if(area)grouped[area].push({value:String(item.value||''),status:String(item.status||'')})}
+ const areas={} as Record<CategoryId,number>;
+ for(const area of categories){
+   const facts=grouped[area],confirmed=facts.filter(x=>x.status!=='needs_clarification').length,clarify=facts.length-confirmed;
+   const breadth=new Set(facts.flatMap(x=>depthLex[area].filter(w=>x.value.toLowerCase().includes(w)))).size;
+   const native=model.mode==='aspects'?model.map[area].length*5:(model.covered.includes(area)?10:0);
+   const evidence=Math.min(72,confirmed*4)+Math.min(12,breadth*2)+native-Math.min(8,clarify*2);
+   areas[area]=Math.max(0,Math.min(100,Math.round(evidence)));
+ }
+ return {areas,overall:Math.round(categories.reduce((n,c)=>n+areas[c],0)/categories.length)};
+}
+
 export function mapProgress(model:PersonalMapModel){
   if(model.mode==='areas')return {current:model.covered.length,total:10,label:model.covered.length+'/10',description:'AREAS WITH SAVED CONTEXT'};
   return {current:count(model.map),total:30,label:count(model.map)+'/30',description:'CONTEXT DIMENSIONS'};
