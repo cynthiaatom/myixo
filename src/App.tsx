@@ -265,7 +265,7 @@ export default function App(){
     setConnectError('');setAdaptiveBusy(true);
     try{
       const mem=await loadMemoryData();
-      const plan=buildLearningPlan(model,mem);
+      const plan=buildLearningPlan(model,mem,learningSession.areas);
       setLearningPlan(plan);
       if(!plan.next){setAdaptiveQuestion('');return}
       setAdaptiveQuestion(await generateAdaptiveQuestion(plan.topic));
@@ -300,7 +300,7 @@ export default function App(){
       const reward=Array.from(new Set<CategoryId>([...newAreas,...(learned&&targetArea?[targetArea]:[])]));
       setCoverageShift(before.mode==='areas'&&after.mode==='areas'&&before.covered.length!==after.covered.length?{before:before.covered.length,after:after.covered.length}:null);
       setLastLearning(delta);setChanged(newAreas);setRewardAreas(reward);
-      const plan=buildLearningPlan(after,refreshed);setLearningPlan(plan);
+      const plan=buildLearningPlan(after,refreshed,[...learningSession.areas,...(targetArea?[targetArea]:[])]);setLearningPlan(plan);
       const nextQuestions=learningSession.questions+1;
       const nextMeaningful=learningSession.meaningful+(learned?1:0);
       const shouldStop=nextMeaningful>=3||nextQuestions>=4||!plan.next;
