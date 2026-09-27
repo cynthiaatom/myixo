@@ -1,11 +1,11 @@
 import {useMemo} from 'react';
-import {categories,labels,aspects,aspectLabels,type PersonalMapModel,type CategoryId,mapProgress} from './ixo';
+import {categories,labels,aspects,aspectLabels,type PersonalMapModel,type CategoryId,mapProgress,type KnowledgeDepth} from './ixo';
 
 const C=220,R=[[62,96],[102,136],[142,176]],G=2.4;
 function p(a:number,r:number){const z=(a-90)*Math.PI/180;return{x:Math.round((C+r*Math.cos(z))*1000)/1000,y:Math.round((C+r*Math.sin(z))*1000)/1000}}
 function path(a:number,b:number,i:number,o:number){const q=[p(a,o),p(b,o),p(b,i),p(a,i)];return`M ${q[0].x} ${q[0].y} A ${o} ${o} 0 0 1 ${q[1].x} ${q[1].y} L ${q[2].x} ${q[2].y} A ${i} ${i} 0 0 0 ${q[3].x} ${q[3].y} Z`}
 
-export default function Map({model,highlight=[]}:{model:PersonalMapModel,highlight?:CategoryId[]}){
+export default function Map({model,highlight=[],depth}:{model:PersonalMapModel,highlight?:CategoryId[],depth?:KnowledgeDepth}){
   const hi=useMemo(()=>new Set(highlight),[highlight]);
   const covered=new Set(model.covered);
   const progress=mapProgress(model);
@@ -17,15 +17,15 @@ export default function Map({model,highlight=[]}:{model:PersonalMapModel,highlig
     {categories.map((cat,ci)=>{
       const a=ci*sl+G/2,b=(ci+1)*sl-G/2,mid=(a+b)/2,l=p(mid,200);
       if(model.mode==='areas'){
-        const known=covered.has(cat);
+        const known=covered.has(cat),score=depth?.areas[cat]??(known?33:0);
         return <g key={cat}>
           {R.map((rr,ai)=><path key={ai} d={path(a,b,rr[0],rr[1])}
-            fill={known&&ai===1?'var(--gold)':'var(--raised)'}
-            fillOpacity={known&&ai===1 ? .82 : .72}
-            stroke={known?'var(--gold2)':'var(--border)'}
-            strokeOpacity={known?(ai===1?1:.55):1}
-            className={hi.has(cat)&&known&&ai===1?'ignite':known&&ai===1?'breathe':'dim'}>
-            <title>{labels[cat]} — {known?'iXo has saved context at the area level; sub-dimension status is not exposed by this map':'no saved context yet'}</title>
+            fill={score>ai*33?'var(--gold)':'var(--raised)'}
+            fillOpacity={score>ai*33 ? Math.min(.9,.42+score/180) : .72}
+            stroke={score>0?'var(--gold2)':'var(--border)'}
+            strokeOpacity={score>0?(score>ai*33?1:.4):1}
+            className={hi.has(cat)&&score>0?'ignite':score>ai*33?'breathe':'dim'}>
+            <title>{labels[cat]} — MY iXo knowledge depth {score}/100{known?'; native iXo currently reports saved map context':''}</title>
           </path>)}
           <text x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle">{labels[cat]}</text>
         </g>
@@ -41,7 +41,7 @@ export default function Map({model,highlight=[]}:{model:PersonalMapModel,highlig
       </g>
     })}
     <circle cx={C} cy={C} r="54" fill="var(--deep)" stroke="var(--border)"/>
-    <text x={C} y={C-5} textAnchor="middle" className="pct">{progress.label}</text>
-    <text x={C} y={C+17} textAnchor="middle" className="small">{model.mode==='areas'?'AREAS':'DIMENSIONS'}</text>
+    <text x={C} y={C-5} textAnchor="middle" className="pct">{depth?depth.overall+'%':progress.label}</text>
+    <text x={C} y={C+17} textAnchor="middle" className="small">{depth?'KNOWLEDGE':model.mode==='areas'?'AREAS':'DIMENSIONS'}</text>
   </svg>
 }
