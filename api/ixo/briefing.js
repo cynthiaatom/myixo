@@ -19,7 +19,7 @@ export default async function handler(req,res){
         body:JSON.stringify({topic:req.body?.topic??null})
       });
       const data=await r.json().catch(()=>({}));
-      if(!r.ok)return res.status(r.status).json({error:errorDetail(data)||'Could not start iXo briefing'});
+      if(!r.ok)return res.status(r.status).json({error:errorDetail(data)||'Could not start iXo briefing',code:r.status===404?'briefing_start_unavailable':undefined});
       return res.status(201).json({session:data});
     }
     return res.status(405).json({error:'Method not allowed'});
