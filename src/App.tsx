@@ -300,10 +300,11 @@ export default function App(){
       const reward=Array.from(new Set<CategoryId>([...newAreas,...(learned&&targetArea?[targetArea]:[])]));
       setCoverageShift(before.mode==='areas'&&after.mode==='areas'&&before.covered.length!==after.covered.length?{before:before.covered.length,after:after.covered.length}:null);
       setLastLearning(delta);setChanged(newAreas);setRewardAreas(reward);
-      const plan=buildLearningPlan(after,refreshed,[...learningSession.areas,...(targetArea?[targetArea]:[])]);setLearningPlan(plan);
-      const nextQuestions=learningSession.questions+1;
+      const sessionAreas=[...learningSession.areas,...(learned&&targetArea?[targetArea]:[])];
+      const plan=buildLearningPlan(after,refreshed,sessionAreas);setLearningPlan(plan);
+      const nextQuestions=learningSession.questions+(learned?1:0);
       const nextMeaningful=learningSession.meaningful+(learned?1:0);
-      const shouldStop=nextMeaningful>=3||nextQuestions>=4||!plan.next;
+      const shouldStop=learned&&(nextMeaningful>=3||nextQuestions>=4||!plan.next);
       setLearningSession({
         questions:nextQuestions,
         meaningful:nextMeaningful,
@@ -312,8 +313,11 @@ export default function App(){
         stopped:shouldStop
       });
       setAnswer('');setAdaptiveQuestion('');
-      if(!learned){setConnectError('That answer did not create durable learning yet. Add a little more specific context, or continue when you are ready.')}
-      else if(!shouldStop&&plan.next)try{setAdaptiveQuestion(await generateAdaptiveQuestion(plan.topic))}catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not generate the next question')}
+      if(!learned){
+        setLastLearning(null);setRewardAreas([]);setConnectError('');
+        const clarification='The user answered: '+JSON.stringify(submitted)+'. No new or revised durable memory became visible after processing. Ask one short, concrete clarification that would make the missing '+(learningPlan?.next?labels[learningPlan.next.area]+' / '+learningPlan.next.construct:'personal context')+' useful and durable. Stay on the same topic. Do not repeat the previous question, do not switch to work unless the topic itself is work, and ask only one question.';
+        try{setAdaptiveQuestion(await generateAdaptiveQuestion(clarification))}catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo needs a little more context before it can learn from that answer.')}
+      } else if(!shouldStop&&plan.next)try{setAdaptiveQuestion(await generateAdaptiveQuestion(plan.topic))}catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not generate the next question')}
     }catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not learn from that answer')}
     finally{setAdaptiveBusy(false)}
   };
