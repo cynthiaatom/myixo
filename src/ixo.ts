@@ -181,7 +181,7 @@ export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{cate
 }
 
 export function mapProgress(model:PersonalMapModel){
-  if(model.mode==='areas')return {current:model.covered.length,total:10,label:model.covered.length+'/10',description:'AREAS WITH SAVED CONTEXT'};
+  if(model.mode==='areas')return {current:model.covered.length,total:10,label:model.covered.length+'/10',description:'NATIVE MAP COVERAGE'};
   return {current:count(model.map),total:30,label:count(model.map)+'/30',description:'CONTEXT DIMENSIONS'};
 }
 
