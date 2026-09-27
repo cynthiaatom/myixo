@@ -61,6 +61,14 @@ export default function App(){
   const [verifyError,setVerifyError]=useState('');
   const eventSource=useRef<EventSource|null>(null);
 
+  const expireSession=()=>{
+    eventSource.current?.close();
+    setUser(null);setSession(null);setMemory(null);setNativeContext(null);setLearningPlan(null);setAdaptiveQuestion('');setAdaptiveBusy(false);adaptiveStarted.current=false;
+    setLastLearning(null);setRewardAreas([]);setCoverageShift(null);setMapReady(false);setModel(demoPersonalMap());setInitState('AUTH_REQUIRED');setStage('connect');
+    setConnectError('Your iXo session expired. Reconnect to continue learning.');
+  };
+  const isDisconnected=(e:any)=>/not connected|session expired|unauthor/i.test(String(e?.message||''));
+
   const progress=mapProgress(model);
   const depth=knowledgeDepth(model,memory);
   const question=user?session?.question:null;
@@ -209,7 +217,7 @@ export default function App(){
     for(let page=0;page<10;page++){
       const r=await fetch('/api/ixo/memory?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
       const d=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(d.error||'Could not load iXo memory');
+      if(!r.ok){const e:any=new Error(d.error||'Could not load iXo memory');e.status=r.status;throw e}
       profileRevision=Number(d.profile_revision||profileRevision);
       indexStatus=String(d.index_status||indexStatus);
       if(Array.isArray(d.items))all.push(...d.items);
@@ -305,8 +313,9 @@ export default function App(){
         stopped:shouldStop
       });
       setAnswer('');setAdaptiveQuestion('');
-      if(!shouldStop&&plan.next)try{setAdaptiveQuestion(await generateAdaptiveQuestion(plan.topic))}catch(e:any){setConnectError(e.message||'iXo could not generate the next question')}
-    }catch(e:any){setConnectError(e.message||'iXo could not learn from that answer')}
+      if(!learned){setConnectError('That answer did not create durable learning yet. Add a little more specific context, or continue when you are ready.')}
+      else if(!shouldStop&&plan.next)try{setAdaptiveQuestion(await generateAdaptiveQuestion(plan.topic))}catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not generate the next question')}
+    }catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not learn from that answer')}
     finally{setAdaptiveBusy(false)}
   };
 
@@ -315,7 +324,7 @@ export default function App(){
     setLearningSession({questions:0,meaningful:0,areas:[],newAreas:0,stopped:false});
     setRewardAreas([]);setCoverageShift(null);setConnectError('');setAdaptiveBusy(true);
     try{setAdaptiveQuestion(await generateAdaptiveQuestion(learningPlan.topic))}
-    catch(e:any){setConnectError(e.message||'iXo could not generate the next question')}
+    catch(e:any){if(isDisconnected(e))expireSession();else setConnectError(e.message||'iXo could not generate the next question')}
     finally{setAdaptiveBusy(false)}
   };
 
