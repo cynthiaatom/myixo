@@ -126,10 +126,11 @@ export default function App(){
           const plan=buildLearningPlan(restoredMap,mem);
           setLearningPlan(plan);
           try{
-            let current=await getBriefing();
-            if(!current||current.state==='completed'||current.state==='paused')current=await startBriefing(plan.topic);
-            current=await waitForBriefing(current);
-            if(current?.state==='in_progress')setSession(current);
+            const current=await getBriefing();
+            if(current?.state==='in_progress'){
+              const ready=await waitForBriefing(current);
+              if(ready?.state==='in_progress')setSession(ready);
+            }
           }catch{}
         }).catch(()=>{});
       }catch(e:any){
