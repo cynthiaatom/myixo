@@ -112,3 +112,5 @@
 @media(max-width:900px){.meExperience{padding-top:26px}.homeQuestion h3{font-size:22px}.mapHome .map{transform:scale(.74)}}@media(max-width:560px){.meIntro h1{font-size:52px}.nextLearning{padding:20px}.homeQuestionActions{align-items:stretch;flex-direction:column}.homeQuestionActions button{width:100%}}
 
 .learningHomeError{margin:0 0 12px;border:1px solid #78513b;border-radius:14px;padding:12px 14px;background:#6e382418;color:#d6aa95;font-size:12px;line-height:1.5}
+
+.adaptivePreparing{width:100%;margin-top:14px;padding:16px;border:1px solid var(--border);border-radius:14px;color:#9c9487;font-size:12px}.homeLearningReceipt{width:100%;margin:12px 0 4px;padding:12px 14px;border:1px solid #4e422b;border-radius:14px;background:#6f54230d}.homeLearningReceipt span{font-size:9px;letter-spacing:.15em;color:var(--gold)}.homeLearningReceipt p{margin:6px 0 0;color:#c9c0b2;font-size:11px;line-height:1.45}
