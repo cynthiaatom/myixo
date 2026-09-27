@@ -122,3 +122,6 @@
 
 /* Disconnected ME: calmer editorial hierarchy */
 .connectLearningCard{padding:40px 42px 38px;justify-content:center;min-height:408px}.connectLearningCard .eyebrow{margin-bottom:24px}.connectLearningCard h2{max-width:540px;font-size:34px;line-height:1.08;margin:0 0 20px}.connectLearningCard>p{max-width:520px;font-size:14px;line-height:1.7;margin:0 0 30px}.connectLearningCard .primary{margin-top:0;align-self:flex-start}@media(max-width:760px){.connectLearningCard{padding:30px 26px;min-height:auto}.connectLearningCard h2{font-size:30px}}
+
+/* Continue-learning state: deliberate vertical rhythm */
+.learningContinueState{display:flex;flex-direction:column;align-items:flex-start;padding:12px 0 8px}.learningContinueState h2{margin:0 0 20px!important;max-width:560px;line-height:1.12!important}.learningContinueState>p{margin:0 0 30px!important;max-width:570px;line-height:1.7!important}.learningContinueState .primary{margin:0!important}.nextLearning:has(.learningContinueState){padding:42px 44px!important;min-height:300px;justify-content:flex-start!important}.nextLearning:has(.learningContinueState)>.eyebrow{margin-bottom:26px!important}@media(max-width:760px){.nextLearning:has(.learningContinueState){padding:32px 28px!important}.learningContinueState h2{margin-bottom:16px!important}.learningContinueState>p{margin-bottom:24px!important}}
