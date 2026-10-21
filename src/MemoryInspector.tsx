@@ -109,7 +109,7 @@ export default function MemoryInspector({memory,setMemory,onClose}:{memory:Memor
   const removed=(id:string)=>syncRevision({...memory,items:memory.items.filter(x=>x.id!==id)});
 
   const portrait=useMemo(()=>{
-    const confirmed=memory.items.filter(f=>f.status==='confirmed'&&f.value.trim());
+    const confirmed=memory.items.filter(f=>f.status==='confirmed'&&!f.supersedes_id&&f.value.trim());
     const categories=[...new Set(confirmed.map(f=>f.category||'other'))];
     const byCategory=categories.map(category=>({category,facts:confirmed.filter(f=>f.category===category)})).sort((a,b)=>b.facts.length-a.facts.length);
     const top=byCategory.slice(0,4);
@@ -123,15 +123,15 @@ export default function MemoryInspector({memory,setMemory,onClose}:{memory:Memor
     <section className="portraitPanel" aria-label="Evidence-backed personal portrait">
       <div className="eyebrow">YOUR WORKING PORTRAIT</div>
       <h3>What iXo can currently support with evidence</h3>
-      <p>This is an inspectable snapshot of saved, confirmed memories—not a personality diagnosis or an AI guess. Each observation links to the underlying facts below.</p>
+      <p>This is an inspectable snapshot of saved, confirmed memories—not a personality diagnosis or an AI guess. The examples are taken directly from the native memory records listed below.</p>
       <div className="portraitEvidenceGrid">
         {portrait.top.map(group=><div className="portraitEvidenceCard" key={group.category}>
           <strong>{title(group.category)}</strong><span>{group.facts.length} confirmed {group.facts.length===1?'memory':'memories'}</span>
           <p>{group.facts[0]?.value}</p>
-          <small>Example from native durable Memory · review or correct in the facts below</small>
+          <small>Example from native durable Memory · use the Memory Inspector below to review or correct</small>
         </div>)}
       </div>
-      <p className="portraitCaveat">{portrait.confirmed} confirmed memories visible in this loaded page. Categories and examples describe evidence coverage, not your personality, priorities, or completeness. Other memories may exist beyond the current page.</p>
+      <p className="portraitCaveat">{portrait.confirmed} confirmed memories visible in this loaded page. Categories and examples describe the loaded evidence, not your personality, priorities, or completeness. Other memories may exist beyond the current page.</p>
     </section>
     <div className="memorySummary">
       <div><strong>{memory.items.length}</strong><span>durable memories</span></div>
