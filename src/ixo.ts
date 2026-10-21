@@ -12,6 +12,7 @@ export type PersonalMapModel={
   covered:CategoryId[];
   nativePercent:number|null;
   source:'native'|'demo';
+  nativeAreas?:Array<{id:string;label:string;factCount:number|null;covered:boolean}>;
 };
 
 const emptyMap=()=>Object.fromEntries(categories.map(c=>[c,[] as AspectId[]])) as MapState;
@@ -107,12 +108,22 @@ export function parseNativePersonalMap(payload:unknown):PersonalMapModel{
   const map=emptyMap();
   const rows=rowsFrom(pm);
   const covered=new Set<CategoryId>();
+  const nativeAreas:NonNullable<PersonalMapModel['nativeAreas']>=[];
   let aspectSchema=false;
 
   for(const rawRow of rows){
     if(rawRow==null)continue;
     const row=typeof rawRow==='object'?rawRow as Record<string,unknown>:{value:rawRow};
-    const cat=categoryOf(row.id??row.key??row.category??row.area??row.slug??row.name??row.label);
+    const rawName=String(row.id??row.key??row.category??row.area??row.slug??row.name??row.label??'').trim();
+    if(!rawName)continue;
+    const cat=categoryOf(rawName);
+    const rawCount=row.fact_count??row.facts_count??row.saved_facts??row.count??(Array.isArray(row.facts)?row.facts.length:null);
+    const factCount=rawCount===null||rawCount===undefined||rawCount===''?null:Number(rawCount);
+    const nativeCovered=coveredFromRow(row)||(factCount!==null&&Number.isFinite(factCount)&&factCount>0);
+    if(!nativeAreas.some(a=>a.id===rawName.toLowerCase()))nativeAreas.push({
+      id:rawName.toLowerCase(),label:String(row.label??row.name??rawName).replace(/[_-]+/g,' '),
+      factCount:factCount!==null&&Number.isFinite(factCount)?factCount:null,covered:nativeCovered
+    });
     if(!cat)continue;
 
     if(Array.isArray(row.aspects)){
@@ -142,7 +153,8 @@ export function parseNativePersonalMap(payload:unknown):PersonalMapModel{
     map,
     covered:categories.filter(c=>covered.has(c)),
     nativePercent,
-    source:'native'
+    source:'native',
+    nativeAreas
   };
 }
 
@@ -171,7 +183,7 @@ export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{cate
  // Deduplicate repeated facts and limit one-source imports from dominating the map.
  const grouped=Object.fromEntries(categories.map(c=>[c,new Map<string,{value:string;status:string;source:string}>()])) as Record<CategoryId,Map<string,{value:string;status:string;source:string}>>;
  for(const item of memory?.items||[]){
-   if(item.supersedes_id)continue;
+   // A superseding memory is the newer correction, not the obsolete original.
    const area=memoryArea(String(item.category||''),String(item.value||''));
    if(!area)continue;
    const value=String(item.value||'').trim();
