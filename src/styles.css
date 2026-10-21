@@ -136,3 +136,13 @@
 .portraitEvidenceCard span,.portraitEvidenceCard small{display:block;font-size:12px;opacity:.7;margin-top:7px}
 .portraitEvidenceCard p{line-height:1.55;overflow-wrap:anywhere}
 .portraitPanel .portraitCaveat{font-size:12px;opacity:.7;margin-top:18px}
+
+.nativeAreas{width:100%;margin:16px 0;padding:16px;border:1px solid var(--border);border-radius:16px}
+.nativeAreas summary{cursor:pointer;color:var(--gold);font-weight:700}
+.nativeAreas p{font-size:13px;line-height:1.5}
+.nativeAreaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:12px}
+.nativeAreaGrid>div{padding:10px;border:1px solid var(--border);border-radius:10px;min-width:0}
+.nativeAreaGrid b,.nativeAreaGrid span{display:block;overflow-wrap:anywhere}
+.nativeAreaGrid span{font-size:12px;opacity:.7;margin-top:4px}
+.personalizationProof{border:1px solid var(--border);border-radius:14px;padding:20px;margin:20px 0}
+.personalizationProof p{line-height:1.6;overflow-wrap:anywhere}
