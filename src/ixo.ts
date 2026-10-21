@@ -166,15 +166,29 @@ const memoryArea=(category:string,value:string):CategoryId|null=>{
  for(const area of categories){const n=depthLex[area].reduce((sum,w)=>sum+(text.includes(w)?1:0),0);if(n>bestHits){best=area;bestHits=n}}
  return bestHits?best:null;
 };
-export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{category?:string;value?:string;status?:string}>}|null):KnowledgeDepth{
- const grouped=Object.fromEntries(categories.map(c=>[c,[] as Array<{value:string;status:string}>])) as Record<CategoryId,Array<{value:string;status:string}>>;
- for(const item of memory?.items||[]){const area=memoryArea(String(item.category||''),String(item.value||''));if(area)grouped[area].push({value:String(item.value||''),status:String(item.status||'')})}
+export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{category?:string;value?:string;status?:string;source?:{kind?:string};supersedes_id?:string|null}>}|null):KnowledgeDepth{
+ // Heuristic knowledge *coverage*, not a validated psychological score.
+ // Deduplicate repeated facts and limit one-source imports from dominating the map.
+ const grouped=Object.fromEntries(categories.map(c=>[c,new Map<string,{value:string;status:string;source:string}>()])) as Record<CategoryId,Map<string,{value:string;status:string;source:string}>>;
+ for(const item of memory?.items||[]){
+   if(item.supersedes_id)continue;
+   const area=memoryArea(String(item.category||''),String(item.value||''));
+   if(!area)continue;
+   const value=String(item.value||'').trim();
+   const key=value.toLowerCase().replace(/\\s+/g,' ');
+   if(!key)continue;
+   grouped[area].set(key,{value,status:String(item.status||''),source:String(item.source?.kind||'unknown')});
+ }
  const areas={} as Record<CategoryId,number>;
  for(const area of categories){
-   const facts=grouped[area],confirmed=facts.filter(x=>x.status!=='needs_clarification').length,clarify=facts.length-confirmed;
-   const breadth=new Set(facts.flatMap(x=>depthLex[area].filter(w=>x.value.toLowerCase().includes(w)))).size;
-   const native=model.mode==='aspects'?model.map[area].length*5:(model.covered.includes(area)?10:0);
-   const evidence=Math.min(72,confirmed*4)+Math.min(12,breadth*2)+native-Math.min(8,clarify*2);
+   const facts=[...grouped[area].values()];
+   const confirmed=facts.filter(x=>x.status==='confirmed');
+   const breadth=new Set(confirmed.flatMap(x=>depthLex[area].filter(w=>x.value.toLowerCase().includes(w)))).size;
+   const sources=new Set(confirmed.map(x=>x.source));
+   const native=model.mode==='aspects'?model.map[area].length*5:(model.covered.includes(area)?8:0);
+   // Diminishing returns: a large batch of measurements cannot saturate a life domain.
+   const volume=confirmed.length?Math.round(30*(1-Math.exp(-confirmed.length/9))):0;
+   const evidence=volume+Math.min(20,breadth*3)+Math.min(12,sources.size*4)+native;
    areas[area]=Math.max(0,Math.min(100,Math.round(evidence)));
  }
  return {areas,overall:Math.round(categories.reduce((n,c)=>n+areas[c],0)/categories.length)};
