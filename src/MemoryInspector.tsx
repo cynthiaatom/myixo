@@ -108,11 +108,31 @@ export default function MemoryInspector({memory,setMemory,onClose}:{memory:Memor
   const changed=(fact:MemoryFact)=>syncRevision({...memory,items:memory.items.map(x=>x.id===fact.id?fact:x)});
   const removed=(id:string)=>syncRevision({...memory,items:memory.items.filter(x=>x.id!==id)});
 
+  const portrait=useMemo(()=>{
+    const confirmed=memory.items.filter(f=>f.status==='confirmed'&&f.value.trim());
+    const categories=[...new Set(confirmed.map(f=>f.category||'other'))];
+    const byCategory=categories.map(category=>({category,facts:confirmed.filter(f=>f.category===category)})).sort((a,b)=>b.facts.length-a.facts.length);
+    const top=byCategory.slice(0,4);
+    return {confirmed:confirmed.length,top,unexplored:Math.max(0,10-categories.length)};
+  },[memory]);
   return <section className="memoryInspector">
     <div className="memoryHeader">
       <div><div className="eyebrow">WHAT iXo KNOWS ABOUT ME</div><h2>Memory Inspector</h2><p>These are iXo's durable profile memories—not an AI-generated summary. Review what it knows, see where it came from, correct it, or remove it.</p></div>
       <button onClick={onClose}>← Personal Map</button>
     </div>
+    <section className="portraitPanel" aria-label="Evidence-backed personal portrait">
+      <div className="eyebrow">YOUR WORKING PORTRAIT</div>
+      <h3>What iXo can currently support with evidence</h3>
+      <p>This is an inspectable snapshot of saved, confirmed memories—not a personality diagnosis or an AI guess. Each observation links to the underlying facts below.</p>
+      <div className="portraitEvidenceGrid">
+        {portrait.top.map(group=><div className="portraitEvidenceCard" key={group.category}>
+          <strong>{title(group.category)}</strong><span>{group.facts.length} confirmed {group.facts.length===1?'memory':'memories'}</span>
+          <p>{group.facts[0]?.value}</p>
+          <small>Example from native durable Memory · review or correct in the facts below</small>
+        </div>)}
+      </div>
+      <p className="portraitCaveat">{portrait.confirmed} confirmed memories visible in this loaded page. Categories and examples describe evidence coverage, not your personality, priorities, or completeness. Other memories may exist beyond the current page.</p>
+    </section>
     <div className="memorySummary">
       <div><strong>{memory.items.length}</strong><span>durable memories</span></div>
       <div><strong>{clarifyCount}</strong><span>need clarification</span></div>
