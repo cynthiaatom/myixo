@@ -175,7 +175,7 @@ export function knowledgeDepth(model:PersonalMapModel,memory:{items?:Array<{cate
    const area=memoryArea(String(item.category||''),String(item.value||''));
    if(!area)continue;
    const value=String(item.value||'').trim();
-   const key=value.toLowerCase().replace(/\\s+/g,' ');
+   const key=value.toLowerCase().replace(/\s+/g,' ');
    if(!key)continue;
    grouped[area].set(key,{value,status:String(item.status||''),source:String(item.source?.kind||'unknown')});
  }
