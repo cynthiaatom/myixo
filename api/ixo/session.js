@@ -1,7 +1,9 @@
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
+import {decisionsHandler} from '../../lib/decision-store.js';
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
+  if(req.query?.resource==='decisions')return decisionsHandler(req,res);
   if(req.method==='POST'){
     const action=String(req.body?.action||'');
     if(action==='request_verified_email'){
