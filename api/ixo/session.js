@@ -7,12 +7,10 @@ export default async function handler(req,res){
     try{
       const session=await ixoFetch(req,res,'/auth/me',{method:'GET'});
       if(!session.ok)return res.status(401).json({error:'Sign in to iXo first'});
-      const [capabilities,projects]=await Promise.all([
-        ixoFetch(req,res,'/capabilities',{method:'GET'}),
-        ixoFetch(req,res,'/projects?limit=1',{method:'GET'})
-      ]);
+      const capabilities=await ixoFetch(req,res,'/capabilities',{method:'GET'});
+      const projects=await ixoFetch(req,res,'/projects?limit=1',{method:'GET'});
       const data=capabilities.ok?await capabilities.json().catch(()=>({})):{};
-      const features=data&&typeof data.features==='object'?data.features:{};
+      const features=data&&typeof data.features==='object'&&data.features!==null?data.features:data&&typeof data.capabilities==='object'&&data.capabilities!==null?data.capabilities:{};
       const featureKeys=Object.keys(features).filter(k=>/decision|goal|task|action|project|file/i.test(k));
       return res.status(200).json({
         source:'authenticated iXo backend',
