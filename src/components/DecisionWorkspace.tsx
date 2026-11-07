@@ -8,7 +8,7 @@ type Props={
   onAnalyze:()=>void;
 };
 const blank:DecisionData={title:'',nextStep:'',expectedOutcome:'',reviewDate:''};
-const today=()=>new Date().toLocaleDateString('en-CA');
+const today=()=>{const date=new Date();return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');};
 const formatDate=(date:string)=>date?new Date(date+'T12:00:00').toLocaleDateString():'Not scheduled';
 export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
   const [filter,setFilter]=useState<'all'|'due'|'active'|'paused'|'closed'>('all');
