@@ -35,9 +35,11 @@ test('rejects unverified native sessions before private database access',async()
   assert.equal(calls.length,1);
 });
 test('enforces owner-filtered reads using server-verified account ID',async()=>{
-  const {response,calls}=await invoke({},url=>{
+  const {response,calls}=await invoke({},(url,options)=>{
     if(url.endsWith('/auth/me'))return j({id:'native-account-one'});
     if(url.includes('/rest/v1/myixo_decisions')){
+      assert.equal(options.headers.apikey,'fictional-test-secret-key');
+      assert.equal(options.headers.Authorization,undefined);
       assert.ok(url.includes('owner_id=eq.native-account-one'));
       return j([{revision:1,record:sample}]);
     }
