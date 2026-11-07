@@ -6,7 +6,7 @@ import type {DecisionInput,MemoryFact,ReasoningResult} from '../intelligence/typ
 
 const lines=(s:string)=>s.split('\n').map(x=>x.trim()).filter(Boolean);
 
-export default function DecisionLab({onAddDecision}:{onAddDecision:(data:DecisionData)=>void}){
+export default function DecisionLab({onAddDecision}:{onAddDecision:(data:DecisionData)=>Promise<void>}){
   const [input,setInput]=useState<DecisionInput>({decision:'',desiredOutcome:'',options:[],assumptions:[]});
   const [optionsText,setOptionsText]=useState('');
   const [assumptionsText,setAssumptionsText]=useState('');
