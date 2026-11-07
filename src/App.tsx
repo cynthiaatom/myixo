@@ -6,6 +6,8 @@ import ProductNav,{type ProductView} from './components/ProductNav';
 import TodayView from './components/TodayView';
 import MirrorView from './components/MirrorView';
 import DecisionLab from './components/DecisionLab';
+import DecisionWorkspace from './components/DecisionWorkspace';
+import {createDecision,type DecisionData,type DecisionRecord} from './decisions/model';
 import AskIxoView from './components/AskIxoView';
 import TimelineView from './components/TimelineView';
 import type {NativeIntelligenceContext} from './intelligence/types';
@@ -14,7 +16,7 @@ import {buildLearningPlan,learningDelta,type LearningPlan,type LearningDelta} fr
 import {generateAdaptiveQuestion,submitAdaptiveAnswer} from './services/adaptive-learning-native';
 import {getGoogleIdentityToken,googleAvailability} from './services/google-auth';
 
-type Stage='hero'|'demo'|'done'|'connect'|'memory'|'today'|'mirror'|'decide'|'ask'|'timeline';
+type Stage='hero'|'demo'|'done'|'connect'|'memory'|'today'|'mirror'|'decide'|'decisions'|'ask'|'timeline';
 type User={email:string,full_name?:string|null,plan?:string|null};
 type Option={id:string,label:string};
 type BriefingQuestion={id:string,revision:number,state:string,type:string,text:string,options:Option[],allow_custom:boolean,allow_skip:boolean,reason:string};
@@ -43,6 +45,7 @@ export default function App(){
   const [storageCheck,setStorageCheck]=useState<{capability_http_status:number;projects_http_status:number;dedicated_decision_contract_verified:boolean;feature_flags:Record<string,boolean|null>}|null>(null);
   const [storageError,setStorageError]=useState('');
 
+  const [decisions,setDecisions]=useState<DecisionRecord[]>([]);
   const [user,setUser]=useState<User|null>(null);
   const [session,setSession]=useState<BriefingSession|null>(null);
   const [connecting,setConnecting]=useState(false);
@@ -309,6 +312,7 @@ export default function App(){
   };
 
   const openView=async(view:ProductView)=>{
+    if(view==='decisions'){setStage('decisions');return}
     if(!user){setStage('connect');return}
     setConnectError('');
     if(view==='me'){setStage('hero');return}
@@ -320,6 +324,12 @@ export default function App(){
       setStage(view);
     }catch(e:any){setConnectError(e.message||'Could not load iXo context');setStage('connect')}
     finally{setMemoryLoading(false)}
+  };
+
+  const addDecision=(data:DecisionData)=>{
+    const record=createDecision(data);
+    setDecisions(existing=>[record,...existing]);
+    setStage('decisions');
   };
 
   const openMemory=async()=>openView('memory');
@@ -531,10 +541,10 @@ export default function App(){
   const currentHelper=user?(question?.reason||'iXo chose this question based on what it already knows and what would add the most useful context.'):questions[demoQi]?.helper;
   const currentPlaceholder=user?'Tell iXo in your own words...':questions[demoQi]?.placeholder;
   const chips=user?(question?.options||[]):questions[demoQi].chips.map((label,i)=>({id:String(i),label}));
-  const activeView:ProductView=stage==='memory'?'memory':stage==='today'?'today':stage==='mirror'?'mirror':stage==='decide'?'decide':stage==='ask'?'ask':stage==='timeline'?'timeline':'me';
+  const activeView:ProductView=stage==='memory'?'memory':stage==='today'?'today':stage==='mirror'?'mirror':stage==='decide'?'decide':stage==='decisions'?'decisions':stage==='ask'?'ask':stage==='timeline'?'timeline':'me';
 
   return <main><div className="veil"/><header><div className="logo"><span className="my">MY</span><span className="ixo">iXo</span></div><div className="demo">{user?'iXo CONNECTED':'EXECUTIVE DEMO'}</div></header><div className="wrap">
-    {user&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
+    {(user||stage==='decisions')&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
     {memoryLoading&&<div className="contextLoading">Loading your iXo context...</div>}
     {stage==='hero'&&initState==='LOADING'&&<section className="hero loadingHero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Syncing your real iXo context before showing your Personal Map.</p><div className="syncPill"><span/>Checking session {String.fromCodePoint(0x00B7)} loading native Personal Map</div></div><div className="mapLoading"><div className="mapLoadingCore">MY<br/><b>iXo</b></div><p>SYNCING PERSONAL MAP</p></div></section>}
     {stage==='hero'&&(initState==='PARTIAL'||initState==='ERROR')&&user&&<section className="hero"><div><div className="eyebrow">CONNECTED {String.fromCodePoint(0x00B7)} PERSONAL MAP UNAVAILABLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Connected to iXo, but the Personal Map couldn't be loaded.</p><div className="actions"><button className="primary" onClick={retryPersonalMap}>Retry Personal Map</button><button onClick={()=>setStage('connect')}>Connection</button></div><p className="note">Your native Personal Map is unavailable right now. Durable Memory is separate and is not being used as a replacement.</p></div></section>}
@@ -545,7 +555,8 @@ export default function App(){
     {stage==='memory'&&memory&&<MemoryInspector memory={memory} setMemory={m=>{setMemory(m);setNativeContext(null)}} onClose={()=>setStage('hero')}/>}
     {stage==='today'&&memory&&<TodayView memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')} onVerificationRequired={()=>{setVerifyError('');setVerifyOpen(true)}}/>}
     {stage==='mirror'&&memory&&<MirrorView memory={memory as any} nativeContext={nativeContext} onMemory={()=>openView('memory')} onDecide={()=>openView('decide')}/>}
-    {stage==='decide'&&<DecisionLab/>}
+    {stage==='decide'&&<DecisionLab onAddDecision={addDecision}/>}
+    {stage==='decisions'&&<DecisionWorkspace decisions={decisions} onChange={setDecisions} onAnalyze={()=>{if(user)setStage('decide');else setStage('connect')}}/>}
     {stage==='ask'&&<AskIxoView/>}
     {stage==='timeline'&&memory&&<TimelineView memory={memory as any}/>}
 
@@ -558,7 +569,7 @@ export default function App(){
       <button className="primary" disabled={connecting||!/^\d{6}$/.test(signInCode)} onClick={()=>void confirmSignInCode()}>{connecting?'Verifying...':'Sign in with code'}</button>
       <div className="actions"><button disabled={connecting} onClick={()=>{if(Date.now()<signInResendAt){setConnectError('Please allow a minute before requesting another code.');return}void requestSignInCode()}}>Resend code</button><button onClick={()=>{setSignInChallenge('');setSignInCode('');setConnectError('')}}>Use another method</button></div>
     </div>:<button disabled={connecting||!email.trim()} onClick={()=>void requestSignInCode()}>{connecting?'Sending...':'Email me a sign-in code'}</button>}
-    <div className="eyebrow">OR USE PASSWORD</div><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting...':'Connect My iXo '+String.fromCodePoint(0x2192)}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>&larr; Back</button></>}</section>}
+    <div className="eyebrow">OR USE PASSWORD</div><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting...':'Connect My iXo '+String.fromCodePoint(0x2192)}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('decisions')}>Explore My Decisions (session prototype)</button><button onClick={()=>setStage('hero')}>&larr; Back</button></>}</section>}
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory',"Your answer is saved into iXo's revisioned personal context."],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
     {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>This email is used only to satisfy iXo's contact verification requirement. It does not change your iXo login.</p>{verifyStep==='email'?<form className="verifyForm" onSubmit={e=>{e.preventDefault();if(!verifyBusy&&contactEmailValid)void sendVerification()}}><label>Contact email<input type="email" placeholder="name@example.com" value={contactEmail} onChange={e=>{setContactEmail(e.target.value);if(verifyError)setVerifyError('')}} autoComplete="email"/></label></form>:<label className="verifyField">Enter the 6-digit code<input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verifyCode} onChange={e=>{const next=e.target.value.trim();if(/^[0-9]*$/.test(next)&&next.length<=6){setVerifyCode(next);if(verifyError)setVerifyError('')}}} onKeyDown={e=>{if(e.key==='Enter'&&!verifyBusy&&verificationCodeValid){e.preventDefault();void confirmVerification()}}} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmailValid} onClick={sendVerification}>{verifyBusy?'Sending...':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||!verificationCodeValid} onClick={confirmVerification}>{verifyBusy?'Confirming...':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Not now</button></div></section></div>}
