@@ -4,13 +4,16 @@ import {createDecision,decisionCounts,dueDecisions,recordCheckIn,updateDecision,
 
 type Props={
   decisions:DecisionRecord[];
-  onChange:(apply:(current:DecisionRecord[])=>DecisionRecord[])=>void;
+  onChange:(apply:(current:DecisionRecord[])=>DecisionRecord[])=>Promise<void>;
   onAnalyze:()=>void;
+  storageMode:'session'|'loading'|'private'|'error';
+  storageMessage:string;
+  pending:boolean;
 };
 const blank:DecisionData={title:'',nextStep:'',expectedOutcome:'',reviewDate:''};
 const today=()=>{const date=new Date();return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');};
 const formatDate=(date:string)=>date?new Date(date+'T12:00:00').toLocaleDateString():'Not scheduled';
-export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
+export default function DecisionWorkspace({decisions,onChange,onAnalyze,storageMode,storageMessage,pending}:Props){
   const [filter,setFilter]=useState<'all'|'due'|'active'|'paused'|'closed'>('all');
   const [expanded,setExpanded]=useState<string|null>(null);
   const [editing,setEditing]=useState<string|null>(null);
@@ -29,30 +32,31 @@ export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
     setForm({title:d.title,nextStep:d.nextStep,expectedOutcome:d.expectedOutcome,reviewDate:d.reviewDate});
     setEditing(d.id);setExpanded(d.id);setChecking(null);setNotice('');
   };
-  const save=()=>{
+  const commit=async(change:(current:DecisionRecord[])=>DecisionRecord[],success:string)=>{
     try{
-      const record=editing?undefined:createDecision(form);
-      onChange(items=>editing?items.map(d=>d.id===editing?updateDecision(d,form):d):[record!,...items]);
-      setEditing(null);setForm(blank);setNotice('Updated in this tab only. No permanent account save has occurred.');
-    }catch(e:any){setNotice(e.message)}
+      await onChange(change);
+      setNotice(storageMode==='private'?'Saved to your private My iXo decision account.':success);
+      return true;
+    }catch(e:any){setNotice(e?.message||'The change could not be saved.');return false}
   };
-  const updateStatus=(d:DecisionRecord,status:DecisionStatus)=>{
-    onChange(items=>items.map(item=>item.id===d.id?updateDecision(item,{status}):item));
-    setNotice('Status updated in this tab.');};
-  const checkIn=(d:DecisionRecord)=>{
-    try{
-      onChange(items=>items.map(item=>item.id===d.id?recordCheckIn(item,{outcome,reported:report,nextStep,nextReviewDate:nextReview}):item));
-      setChecking(null);setReport('');setNextStep('');setNextReview('');
-      setNotice('Reported outcome added to this tab. No native iXo memory was changed.');
-    }catch(e:any){setNotice(e.message)}
+  const save=async()=>{
+    const ok=await commit(items=>items.map(d=>d.id===editing?updateDecision(d,form):d),'Updated in this tab only. No permanent account save has occurred.');
+    if(ok){setEditing(null);setForm(blank)}
+  };
+  const updateStatus=async(d:DecisionRecord,status:DecisionStatus)=>{
+    await commit(items=>items.map(item=>item.id===d.id?updateDecision(item,{status}):item),'Status updated in this tab only.');
+  };
+  const checkIn=async(d:DecisionRecord)=>{
+    const ok=await commit(items=>items.map(item=>item.id===d.id?recordCheckIn(item,{outcome,reported:report,nextStep,nextReviewDate:nextReview}):item),'Reported outcome added to this tab. No native iXo memory was changed.');
+    if(ok){setChecking(null);setReport('');setNextStep('');setNextReview('')}
   };
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">MY DECISIONS · DECISION CONTINUITY</div>
       <h1>MAKE PROGRESS. <em>COME BACK.</em></h1>
       <p>Keep your decisions, follow-through steps, and reported outcomes together—so you can see what changed and choose what comes next.</p>
     </div>
-    <div className="decisionSessionNotice" role="note"><strong>Development preview · temporary session</strong>
-      <p>Records stay only in this open app session. They are not yet saved to iXo or Supabase, survive neither reload nor logout, and do not send reminders. Use fictional examples until secure permanent storage is connected.</p>
+    <div className="decisionSessionNotice" role="status"><strong>{storageMode==='private'?'Private account storage connected':storageMode==='loading'?'Checking private storage':storageMode==='error'?'Private storage unavailable':'Development preview · temporary session'}</strong>
+      <p>{storageMode==='private'?'Decisions and check-ins are saved by the private account service after an acknowledged server response. You can return on another device using the same authenticated iXo account.':storageMode==='loading'?'Verifying the private account-specific decision database; editing is temporarily unavailable.':storageMessage||'Records stay only in this open app session. They are not saved to iXo or Supabase, and will not survive reload or logout. Use fictional examples until private storage is connected.'}</p>
     </div>
     <div className="decisionMetrics">
       <div><strong>{counts.active}</strong><span>Active decisions</span></div>
@@ -61,13 +65,13 @@ export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
       <div><strong>{counts.total}</strong><span>In this session</span></div>
     </div>
     <div className="decisionWorkspaceActions">
-      <button className="primary" onClick={()=>{setForm(blank);setEditing('new');setNotice('')}}>Add decision manually</button>
+      <button className="primary" disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>{setForm(blank);setEditing('new');setNotice('')}}>Add decision manually</button>
       <button onClick={onAnalyze}>Analyze a decision with iXo</button>
     </div>
     {editing==='new'&&<div className="decisionEditPanel">
       <h2>Create a decision</h2>
       <DecisionFields form={form} onChange={setForm}/>
-      <div className="actions"><button className="primary" disabled={!form.title.trim()||!form.nextStep.trim()} onClick={()=>{try{const d=createDecision(form);onChange(items=>[d,...items]);setExpanded(d.id);setEditing(null);setForm(blank);setNotice('Temporary decision added.')}catch(e:any){setNotice(e.message)}}}>Add to this session</button>
+      <div className="actions"><button className="primary" disabled={pending||storageMode==='loading'||storageMode==='error'||!form.title.trim()||!form.nextStep.trim()} onClick={async()=>{try{const d=createDecision(form);const ok=await commit(items=>[d,...items],'Temporary decision added.');if(ok){setExpanded(d.id);setEditing(null);setForm(blank)}}catch(e:any){setNotice(e.message)}}}>{pending?'Saving...':storageMode==='private'?'Save decision':'Add to this session'}</button>
       <button onClick={()=>setEditing(null)}>Cancel</button></div>
     </div>}
     <div className="decisionFilters" aria-label="Filter decisions">
@@ -84,12 +88,12 @@ export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
         {d.expectedOutcome&&<p className="decisionGoal">Hoped-for result: {d.expectedOutcome}</p>}
         <div className="actions">
           <button aria-expanded={expanded===d.id} onClick={()=>{setExpanded(expanded===d.id?null:d.id);setChecking(null)}}>{expanded===d.id?'Hide details':'View progress'} · {d.checkIns.length} check-ins</button>
-          <button onClick={()=>{setExpanded(d.id);setChecking(d.id);setEditing(null);setNotice('')}}>Record outcome</button>
-          <button onClick={()=>beginEdit(d)}>Edit</button>
+          <button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>{setExpanded(d.id);setChecking(d.id);setEditing(null);setNotice('')}}>Record outcome</button>
+          <button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>beginEdit(d)}>Edit</button>
         </div>
         {expanded===d.id&&<div className="decisionExpanded">
           {editing===d.id&&<div className="decisionEditPanel"><h3>Edit next step and review date</h3><DecisionFields form={form} onChange={setForm}/>
-            <div className="actions"><button className="primary" onClick={save}>Update temporary decision</button><button onClick={()=>setEditing(null)}>Cancel</button></div></div>}
+            <div className="actions"><button className="primary" disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>void save()}>{pending?'Saving...':'Update decision'}</button><button onClick={()=>setEditing(null)}>Cancel</button></div></div>}
           {checking===d.id&&<div className="decisionEditPanel"><h3>What happened since your last review?</h3>
             <label>OUTCOME<select value={outcome} onChange={e=>setOutcome(e.target.value as DecisionOutcome)}>
               <option value="completed">Completed</option><option value="partial">Partially completed</option><option value="changed">Changed direction</option><option value="not_started">Not started</option>
@@ -97,7 +101,7 @@ export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
             <label>YOUR REPORT<textarea value={report} maxLength={2000} onChange={e=>setReport(e.target.value)} placeholder="What worked? What didn't? What changed?"/></label>
             <label>REVISED NEXT STEP · OPTIONAL<textarea value={nextStep} maxLength={1000} onChange={e=>setNextStep(e.target.value)}/></label>
             <label>NEXT REVIEW · OPTIONAL<input type="date" min={today()} value={nextReview} onChange={e=>setNextReview(e.target.value)}/></label>
-            <div className="actions"><button className="primary" disabled={!report.trim()} onClick={()=>checkIn(d)}>Add check-in</button><button onClick={()=>setChecking(null)}>Cancel</button></div>
+            <div className="actions"><button className="primary" disabled={pending||storageMode==='loading'||storageMode==='error'||!report.trim()} onClick={()=>void checkIn(d)}>Add check-in</button><button onClick={()=>setChecking(null)}>Cancel</button></div>
           </div>}
           <h3>Review history</h3>
           {!d.checkIns.length&&<p>No outcomes reported yet. You decide when to check back.</p>}
@@ -106,10 +110,10 @@ export default function DecisionWorkspace({decisions,onChange,onAnalyze}:Props){
             <p>{c.reported}</p>{c.nextStep&&<p>Revised step: {c.nextStep}</p>}
           </div>)}
           <div className="actions">
-            {d.status!=='closed'&&<button onClick={()=>updateStatus(d,d.status==='paused'?'active':'paused')}>{d.status==='paused'?'Resume':'Pause'}</button>}
-            {d.status!=='closed'&&<button onClick={()=>updateStatus(d,'closed')}>Close decision</button>}
-            {d.status==='closed'&&<button onClick={()=>updateStatus(d,'active')}>Reopen</button>}
-            <button onClick={()=>{if(window.confirm('Discard this temporary decision and its check-ins?')){onChange(items=>items.filter(item=>item.id!==d.id));setExpanded(null);setNotice('Temporary decision discarded.')}}}>Discard</button>
+            {d.status!=='closed'&&<button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>void updateStatus(d,d.status==='paused'?'active':'paused')}>{d.status==='paused'?'Resume':'Pause'}</button>}
+            {d.status!=='closed'&&<button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>void updateStatus(d,'closed')}>Close decision</button>}
+            {d.status==='closed'&&<button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={()=>void updateStatus(d,'active')}>Reopen</button>}
+            <button disabled={pending||storageMode==='loading'||storageMode==='error'} onClick={async()=>{if(window.confirm('Delete this decision and its check-ins?')){const ok=await commit(items=>items.filter(item=>item.id!==d.id),'Temporary decision discarded.');if(ok)setExpanded(null)}}}>Discard</button>
           </div>
         </div>}
       </article>)}
