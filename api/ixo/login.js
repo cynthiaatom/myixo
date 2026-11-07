@@ -9,8 +9,8 @@ export default async function handler(req,res){
       // Same public Firebase web configuration used by the official iXo frontend.
       const key='AIzaSyBkS5V8U1KccGrDGlWgYJ5k2bCJmWCf4o0';
       const [catalog,project]=await Promise.all([
-        fetch(BASE+'/public/landing-catalog',{cache:'no-store'}),
-        fetch('https://identitytoolkit.googleapis.com/v1/projects?key='+encodeURIComponent(key),{cache:'no-store'})
+        fetch(BASE+'/public/landing-catalog',{cache:'no-store',signal:AbortSignal.timeout(4000)}),
+        fetch('https://identitytoolkit.googleapis.com/v1/projects?key='+encodeURIComponent(key),{cache:'no-store',signal:AbortSignal.timeout(4000)})
       ]);
       if(!catalog.ok||!project.ok)throw Error('Provider availability check failed');
       const native=await catalog.json();
