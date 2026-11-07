@@ -12,7 +12,7 @@ async function invoke(req,fetcher,env='https://private-test-project.supabase.co'
   const calls=[];
   globalThis.fetch=async(url,opts)=>{calls.push({url:String(url),opts});return fetcher(String(url),opts)};
   const response=res();
-  try{await decisionStorage({method:'GET',headers:{},query:{resource:'decisions'},...req},response);return {response,calls}}
+  try{await decisionStorage({method:'GET',headers:{cookie:'ixo_access=synthetic_test_token'},query:{resource:'decisions'},...req},response);return {response,calls}}
   finally{globalThis.fetch=prior;if(oldUrl===undefined)delete process.env.MYIXO_PRIVATE_SUPABASE_URL;else process.env.MYIXO_PRIVATE_SUPABASE_URL=oldUrl;
     if(oldKey===undefined)delete process.env.MYIXO_PRIVATE_SUPABASE_SECRET_KEY;else process.env.MYIXO_PRIVATE_SUPABASE_SECRET_KEY=oldKey}
 }
