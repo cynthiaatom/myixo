@@ -21,6 +21,52 @@ export default async function handler(req,res){
     }catch{return res.status(503).json({error:'Could not verify Google domain authorization'});}
   }
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
+  // Native email-code sign-in is an alternative when the existing Firebase
+  // provider has not yet authorized the My iXo hostname. Initiated only by
+  // explicit user click; no credentials or codes are retained in logs.
+  if(req.body?.provider==='email_code'){
+    const action=req.body?.action;
+    if(action==='request'){
+      const email=String(req.body?.email||'').trim().toLowerCase();
+      if(email.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+        return res.status(400).json({error:'Enter a valid iXo account email address'});
+      try{
+        const check=await fetch(BASE+'/public/landing-catalog',{cache:'no-store',signal:AbortSignal.timeout(5000)});
+        if(!check.ok||!(await check.json())?.auth?.email_code_enabled)
+          return res.status(503).json({error:'Email code sign-in is not available at iXo'});
+        const upstream=await fetch(BASE+'/auth/email-code/request',{
+          method:'POST',cache:'no-store',signal:AbortSignal.timeout(12000),
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({email,captcha_token:null})
+        });
+        const result=await upstream.json().catch(()=>({}));
+        if(!upstream.ok)return res.status(upstream.status===429?429:400)
+          .json({error:upstream.status===429?'Too many attempts. Try later.':'iXo could not send a sign-in code. Check the email or use official iXo sign-in.'});
+        if(typeof result.challenge_id!=='string'||result.challenge_id.length>200)
+          return res.status(502).json({error:'iXo did not return a valid verification challenge'});
+        return res.status(200).json({challenge_id:result.challenge_id,resend_after:Math.max(0,Math.min(600,Number(result.resend_after)||60))});
+      }catch{return res.status(503).json({error:'iXo email verification is temporarily unavailable'});}
+    }
+    if(action==='confirm'){
+      const challenge_id=String(req.body?.challenge_id||'');
+      const code=String(req.body?.code||'');
+      if(challenge_id.length<4||challenge_id.length>200||!/^\\d{6}$/.test(code))
+        return res.status(400).json({error:'Enter the six-digit code from your email'});
+      try{
+        const upstream=await fetch(BASE+'/auth/email-code/confirm',{
+          method:'POST',cache:'no-store',signal:AbortSignal.timeout(12000),
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({challenge_id,code})
+        });
+        const result=await upstream.json().catch(()=>({}));
+        if(!upstream.ok)return res.status(upstream.status===429?429:401).json({
+          error:upstream.status===429?'Too many attempts. Try again later.':'The code was not accepted or expired.'
+        });
+        return finishSession(res,result);
+      }catch{return res.status(503).json({error:'Could not verify this email code with iXo'});}
+    }
+    return res.status(400).json({error:'Unsupported verification action'});
+  }
   const {email,password,id_token,captcha_token,provider}=req.body||{};
   const google=provider==='google';
   if(provider&&provider!=='google')return res.status(400).json({error:'Unsupported sign-in provider'});
@@ -50,14 +96,18 @@ export default async function handler(req,res){
           'Unable to sign in to iXo';
       return res.status([400,401,403,409,429].includes(r.status)?r.status:502).json({error,code:google?code:null});
     }
-    if(typeof data?.access_token!=='string'||typeof data?.refresh_token!=='string')
-      return res.status(502).json({error:'iXo did not return a complete session'});
-    const meR=await fetch(BASE+'/auth/me',{
-      headers:{authorization:'Bearer '+data.access_token},cache:'no-store'});
-    if(!meR.ok)return res.status(502).json({error:'Could not verify the iXo account'});
-    const me=await meR.json().catch(()=>null);
-    if(!me?.id)return res.status(502).json({error:'Could not verify the iXo account'});
-    setSessionCookies(res,data);
-    return res.status(200).json({connected:true,user:{email:me.email,full_name:me.full_name,plan:me.plan}});
+    return await finishSession(res,data);
   }catch{return res.status(503).json({error:'iXo authentication is temporarily unavailable'});}
+}
+
+async function finishSession(res,data){
+  if(typeof data?.access_token!=='string'||typeof data?.refresh_token!=='string')
+    return res.status(502).json({error:'iXo did not return a complete session'});
+  const meR=await fetch(BASE+'/auth/me',{
+    headers:{authorization:'Bearer '+data.access_token},cache:'no-store',signal:AbortSignal.timeout(10000)});
+  if(!meR.ok)return res.status(502).json({error:'Could not verify the iXo account'});
+  const me=await meR.json().catch(()=>null);
+  if(!me?.id)return res.status(502).json({error:'Could not verify the iXo account'});
+  setSessionCookies(res,data);
+  return res.status(200).json({connected:true,user:{email:me.email,full_name:me.full_name,plan:me.plan}});
 }
