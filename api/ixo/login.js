@@ -2,6 +2,24 @@ import {BASE,setSessionCookies} from '../../lib/ixo-client.js';
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store');
+  if(req.method==='GET'&&req.query?.mode==='google-availability'){
+    try{
+      const host=String(req.headers.host||'').split(':')[0].toLowerCase();
+      if(!/^[a-z0-9.-]{1,253}$/.test(host))return res.status(400).json({error:'Invalid hostname'});
+      // Same public Firebase web configuration used by the official iXo frontend.
+      const key='AIzaSyBkS5V8U1KccGrDGlWgYJ5k2bCJmWCf4o0';
+      const [catalog,project]=await Promise.all([
+        fetch(BASE+'/public/landing-catalog',{cache:'no-store'}),
+        fetch('https://identitytoolkit.googleapis.com/v1/projects?key='+encodeURIComponent(key),{cache:'no-store'})
+      ]);
+      if(!catalog.ok||!project.ok)throw Error('Provider availability check failed');
+      const native=await catalog.json();
+      const firebase=await project.json();
+      const enabled=native?.auth?.google_auth_enabled===true;
+      const allowed=Array.isArray(firebase?.authorizedDomains)&&firebase.authorizedDomains.includes(host);
+      return res.status(200).json({ready:enabled&&allowed,provider_enabled:enabled,domain_authorized:allowed,hostname:host});
+    }catch{return res.status(503).json({error:'Could not verify Google domain authorization'});}
+  }
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
   const {email,password,id_token,captcha_token,provider}=req.body||{};
   const google=provider==='google';
