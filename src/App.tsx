@@ -9,6 +9,7 @@ import DecisionLab from './components/DecisionLab';
 import DecisionWorkspace from './components/DecisionWorkspace';
 import WeeklyPersonalReview from './components/WeeklyPersonalReview';
 import {createDecision,type DecisionData,type DecisionRecord} from './decisions/model';
+import {fetchDecisions,commitDecisionChange,DecisionStorageError} from './decisions/persistence';
 import AskIxoView from './components/AskIxoView';
 import TimelineView from './components/TimelineView';
 import type {NativeIntelligenceContext} from './intelligence/types';
@@ -47,6 +48,11 @@ export default function App(){
   const [storageError,setStorageError]=useState('');
 
   const [decisions,setDecisions]=useState<DecisionRecord[]>([]);
+  const decisionRef=useRef<DecisionRecord[]>([]);
+  const savingDecision=useRef(false);
+  const [decisionPending,setDecisionPending]=useState(false);
+  const [decisionStorageMode,setDecisionStorageMode]=useState<'session'|'loading'|'private'|'error'>('session');
+  const [decisionStorageMessage,setDecisionStorageMessage]=useState('');
   const [user,setUser]=useState<User|null>(null);
   const [session,setSession]=useState<BriefingSession|null>(null);
   const [connecting,setConnecting]=useState(false);
@@ -73,9 +79,44 @@ export default function App(){
   const [verifyError,setVerifyError]=useState('');
   const eventSource=useRef<EventSource|null>(null);
 
+  useEffect(()=>{decisionRef.current=decisions},[decisions]);
+  useEffect(()=>{
+    if(!user){setDecisionStorageMode('session');return}
+    let cancelled=false;
+    setDecisionStorageMode('loading');setDecisionStorageMessage('');
+    void fetchDecisions().then(records=>{
+      if(cancelled)return;
+      // Do not auto-upload temporary decisions or merge them into another account.
+      decisionRef.current=records;setDecisions(records);
+      setDecisionStorageMode('private');setDecisionStorageMessage('');
+    }).catch((error:unknown)=>{
+      if(cancelled)return;
+      // A missing dedicated database remains an explicit temporary session,
+      // never a silent local "save" or an unauthorized shared-database write.
+      const unavailable=error instanceof DecisionStorageError&&(error.status===503||error.status===401);
+      setDecisionStorageMode(unavailable?'session':'error');
+      setDecisionStorageMessage(unavailable?
+        'Private account storage is not active. Your decisions remain temporary in this tab.':
+        'Private decision storage could not be loaded. Editing is temporarily unavailable until a retry.');
+    });
+    return ()=>{cancelled=true};
+  },[user?.email]);
+
+  const applyDecisionChange=async(updater:(current:DecisionRecord[])=>DecisionRecord[])=>{
+    if(savingDecision.current)throw new Error('A decision update is already being processed.');
+    if(decisionStorageMode==='loading'||decisionStorageMode==='error')
+      throw new Error('Storage status is not ready. Please retry after the storage connection is available.');
+    savingDecision.current=true;setDecisionPending(true);
+    try{
+      const before=decisionRef.current;
+      const next=updater(before);
+      const committed=decisionStorageMode==='private'?await commitDecisionChange(before,next):next;
+      decisionRef.current=committed;setDecisions(committed);
+    }finally{savingDecision.current=false;setDecisionPending(false)}
+  };
   const expireSession=()=>{
     eventSource.current?.close();
-    setDecisions([]);
+    decisionRef.current=[];setDecisions([]);setDecisionStorageMode('session');
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setLearningPlan(null);setAdaptiveQuestion('');setAdaptiveBusy(false);adaptiveStarted.current=false;
     setLastLearning(null);setRewardAreas([]);setCoverageShift(null);setMapReady(false);setModel(demoPersonalMap());setInitState('AUTH_REQUIRED');setStage('connect');
     setConnectError('Your iXo session expired. Reconnect to continue learning.');
@@ -328,9 +369,9 @@ export default function App(){
     finally{setMemoryLoading(false)}
   };
 
-  const addDecision=(data:DecisionData)=>{
+  const addDecision=async(data:DecisionData)=>{
     const record=createDecision(data);
-    setDecisions(existing=>[record,...existing]);
+    await applyDecisionChange(existing=>[record,...existing]);
     setStage('decisions');
   };
 
@@ -339,7 +380,7 @@ export default function App(){
   const disconnect=async()=>{
     eventSource.current?.close();
     await fetch('/api/ixo/logout',{method:'POST'});
-    setDecisions([]);
+    decisionRef.current=[];setDecisions([]);setDecisionStorageMode('session');
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setEmail('');setPassword('');setModel(demoPersonalMap());setMapReady(false);setStage('hero');
   };
 
@@ -559,7 +600,7 @@ export default function App(){
     {stage==='today'&&memory&&<TodayView decisions={decisions} onOpenDecisions={()=>setStage('decisions')} memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')} onVerificationRequired={()=>{setVerifyError('');setVerifyOpen(true)}}/>}
     {stage==='mirror'&&memory&&<MirrorView memory={memory as any} nativeContext={nativeContext} onMemory={()=>openView('memory')} onDecide={()=>openView('decide')}/>}
     {stage==='decide'&&<DecisionLab onAddDecision={addDecision}/>}
-    {stage==='decisions'&&<DecisionWorkspace decisions={decisions} onChange={setDecisions} onAnalyze={()=>{if(user)setStage('decide');else setStage('connect')}}/>}
+    {stage==='decisions'&&<DecisionWorkspace decisions={decisions} storageMode={decisionStorageMode} storageMessage={decisionStorageMessage} pending={decisionPending} onChange={applyDecisionChange} onAnalyze={()=>{if(user)setStage('decide');else setStage('connect')}}/>}
     {stage==='weekly'&&<WeeklyPersonalReview decisions={decisions} onOpenDecisions={()=>setStage('decisions')}/>}
     {stage==='ask'&&<AskIxoView/>}
     {stage==='timeline'&&memory&&<TimelineView memory={memory as any}/>}
