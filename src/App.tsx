@@ -74,6 +74,7 @@ export default function App(){
 
   const expireSession=()=>{
     eventSource.current?.close();
+    setDecisions([]);
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setLearningPlan(null);setAdaptiveQuestion('');setAdaptiveBusy(false);adaptiveStarted.current=false;
     setLastLearning(null);setRewardAreas([]);setCoverageShift(null);setMapReady(false);setModel(demoPersonalMap());setInitState('AUTH_REQUIRED');setStage('connect');
     setConnectError('Your iXo session expired. Reconnect to continue learning.');
@@ -337,6 +338,7 @@ export default function App(){
   const disconnect=async()=>{
     eventSource.current?.close();
     await fetch('/api/ixo/logout',{method:'POST'});
+    setDecisions([]);
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setEmail('');setPassword('');setModel(demoPersonalMap());setMapReady(false);setStage('hero');
   };
 
