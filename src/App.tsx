@@ -238,7 +238,7 @@ export default function App(){
     finally{setConnecting(false)}
   };
   const confirmSignInCode=async()=>{
-    if(connecting||!signInChallenge||!/^\\d{6}$/.test(signInCode))return;
+    if(connecting||!signInChallenge||!/^\d{6}$/.test(signInCode))return;
     setConnecting(true);setConnectError('');
     try{
       const r=await fetch('/api/ixo/login',{method:'POST',headers:{'content-type':'application/json'},
@@ -533,8 +533,8 @@ export default function App(){
     {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map &rarr;</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Connect the same iXo account you already use. Google sign-in requires My iXo to be authorized by the native iXo Google provider.</p><div className="loginForm"><button className="primary" disabled={connecting} onClick={()=>void connectGoogle()}>{connecting?'Connecting...':'Continue with Google'}</button><p className="securityNote">If Google reports that this domain is not yet authorized, the native iXo Firebase administrator needs to enable it. <a href="https://ixo.chat/login" target="_blank" rel="noopener noreferrer">Open official iXo sign-in</a></p><div className="eyebrow">OR USE EMAIL</div><label>iXo email<input type="email" value={email} disabled={Boolean(signInChallenge)} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label>
     {signInChallenge?<div className="decisionForm">
       <p>Enter the six-digit code iXo sent to your email. Codes expire; do not share them with anyone.</p>
-      <label>Six-digit sign-in code<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={signInCode} onChange={e=>setSignInCode(e.target.value.replace(/\\D/g,'').slice(0,6))}/></label>
-      <button className="primary" disabled={connecting||!/^\\d{6}$/.test(signInCode)} onClick={()=>void confirmSignInCode()}>{connecting?'Verifying...':'Sign in with code'}</button>
+      <label>Six-digit sign-in code<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={signInCode} onChange={e=>setSignInCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
+      <button className="primary" disabled={connecting||!/^\d{6}$/.test(signInCode)} onClick={()=>void confirmSignInCode()}>{connecting?'Verifying...':'Sign in with code'}</button>
       <div className="actions"><button disabled={connecting} onClick={()=>{if(Date.now()<signInResendAt){setConnectError('Please allow a minute before requesting another code.');return}void requestSignInCode()}}>Resend code</button><button onClick={()=>{setSignInChallenge('');setSignInCode('');setConnectError('')}}>Use another method</button></div>
     </div>:<button disabled={connecting||!email.trim()} onClick={()=>void requestSignInCode()}>{connecting?'Sending...':'Email me a sign-in code'}</button>}
     <div className="eyebrow">OR USE PASSWORD</div><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting...':'Connect My iXo '+String.fromCodePoint(0x2192)}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>&larr; Back</button></>}</section>}
