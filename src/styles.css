@@ -146,3 +146,33 @@
 .nativeAreaGrid span{font-size:12px;opacity:.7;margin-top:4px}
 .personalizationProof{border:1px solid var(--border);border-radius:14px;padding:20px;margin:20px 0}
 .personalizationProof p{line-height:1.6;overflow-wrap:anywhere}
+
+
+/* Decision Continuity — review workspace (session-only prototype) */
+.decisionSessionNotice{border:1px solid #7b6138;background:#69502416;border-radius:14px;padding:16px 20px;margin:0 0 18px}
+.decisionSessionNotice strong{color:var(--gold);font-size:13px}
+.decisionSessionNotice p{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+.decisionMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}
+.decisionMetrics>div{padding:20px;background:var(--raised);border:1px solid var(--border);border-radius:16px;min-width:0}
+.decisionMetrics strong{display:block;font-size:32px;color:var(--gold);font-family:Georgia,serif;font-weight:400}
+.decisionMetrics span{display:block;margin-top:6px;font-size:11px;color:var(--muted)}
+.decisionWorkspaceActions,.decisionFilters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}
+.decisionFilters button{padding:8px 12px;font-size:11px;border-radius:999px;border:1px solid var(--border)}
+.decisionFilters button.active{border-color:var(--gold);color:var(--gold)}
+.decisionCards{display:grid;gap:14px}
+.decisionCard,.decisionEditPanel{border:1px solid var(--border);border-radius:18px;background:var(--raised);padding:22px;min-width:0}
+.decisionCardHead{display:flex;justify-content:space-between;gap:28px;align-items:flex-start}
+.decisionCardHead h2{font-size:25px;line-height:1.25;margin:8px 0}
+.decisionCardHead p,.decisionGoal{color:var(--muted);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.decisionReviewDate{min-width:120px;text-align:right}.decisionReviewDate span{display:block;font-size:10px;letter-spacing:.1em;color:var(--muted)}
+.decisionReviewDate strong{display:block;margin-top:8px;color:var(--gold);font-size:14px}
+.decisionExpanded{margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+.decisionExpanded h3{font-size:17px;margin:16px 0}
+.decisionEditPanel{margin:18px 0;background:#ffffff05}.decisionEditPanel label{display:block;margin:12px 0;font-size:12px;color:var(--muted)}
+.decisionEditPanel textarea,.decisionEditPanel input,.decisionEditPanel select{width:100%;box-sizing:border-box;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface,#161511);color:var(--text);margin-top:6px;font:inherit}
+.decisionEditPanel textarea{min-height:75px;resize:vertical}
+.decisionCheckIn{margin:12px 0;padding:13px 16px;border-left:2px solid var(--gold);background:#ffffff07;border-radius:8px;overflow-wrap:anywhere}
+.decisionCheckIn time{display:block;font-size:10px;color:var(--muted)}.decisionCheckIn strong{display:block;margin-top:5px;color:var(--gold);text-transform:capitalize}
+.decisionCheckIn p{margin:6px 0;line-height:1.5;font-size:13px}
+.decisionNotice{padding:12px;color:var(--gold);font-size:12px}
+@media(max-width:730px){.decisionMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.decisionCardHead{flex-direction:column;gap:8px}.decisionReviewDate{text-align:left}.decisionCard,.decisionEditPanel{padding:16px}}
