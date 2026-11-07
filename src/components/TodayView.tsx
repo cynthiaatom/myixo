@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import type {EvidenceRef,Explanation,MemoryFact,MemoryPayload} from '../intelligence/types';
 import {openRunEvents,reportUnobservedFailure,startReasoning,waitForReasoning} from '../services/reasoning';
 import ExplainPanel from './ExplainPanel';
+import {dueDecisions,type DecisionRecord} from '../decisions/model';
 
 type Item={title?:string;observation?:string;why_it_matters?:string;known?:string[];inferred?:string[];unknown?:string[];evidence_refs?:string[];next_question?:string};
 
@@ -11,7 +12,7 @@ const refs=(ids:unknown,facts:MemoryFact[]):EvidenceRef[]=>{
 };
 const explanation=(x:Item,facts:MemoryFact[]):Explanation=>({observation:String(x.observation||x.title||''),known:Array.isArray(x.known)?x.known:[],inferred:Array.isArray(x.inferred)?x.inferred:[],unknown:Array.isArray(x.unknown)?x.unknown:[],sources:refs(x.evidence_refs,facts)});
 
-export default function TodayView({memory,onMirror,onDecide,onVerificationRequired}:{memory:MemoryPayload;question?:{id:string;text:string;reason?:string|null}|null;onMirror:()=>void;onDecide:()=>void;onVerificationRequired:()=>void}){
+export default function TodayView({memory,onMirror,onDecide,onOpenDecisions,decisions,onVerificationRequired}:{memory:MemoryPayload;decisions:DecisionRecord[];onOpenDecisions:()=>void;question?:{id:string;text:string;reason?:string|null}|null;onMirror:()=>void;onDecide:()=>void;onVerificationRequired:()=>void}){
   const [items,setItems]=useState<Item[]|null>(null);
   const [evidence,setEvidence]=useState<MemoryFact[]>([]);
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
@@ -38,6 +39,12 @@ export default function TodayView({memory,onMirror,onDecide,onVerificationRequir
 
   return <section className="intelligenceView">
     <div className="viewHero"><div className="eyebrow">TODAY &middot; MISSION CONTROL</div><h1>WHAT DESERVES MY <em>ATTENTION?</em></h1><p>A real reasoning pass over a bounded set of durable iXo context. Silence is allowed, but failures are never presented as silence.</p></div>
+    {dueDecisions(decisions,(()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')})()).length>0&&<div className="todayDecisionReviews">
+      <div className="eyebrow">YOUR OWN REVIEW DATES · NO AI INFERENCE</div>
+      <h2>Decisions ready for your review</h2>
+      {dueDecisions(decisions,(()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')})()).slice(0,5).map(d=><div key={d.id}><strong>{d.title}</strong><p>{d.nextStep} · Review: {d.reviewDate}</p></div>)}
+      <button className="primary" onClick={onOpenDecisions}>Check in on decisions</button>
+    </div>}
     {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Evaluating what deserves your attention...</h2><p>{status==='starting'?'Thinking...':'Thinking...'}</p></div>}
     {state==='error'&&<div className="connectError"><b>TODAY reasoning is unavailable.</b><p>{error}</p><button onClick={run}>Try again</button></div>}
     {state==='insufficient'&&<div className="quietState"><h2>There isn't enough relevant context to evaluate TODAY yet.</h2><p>This is different from a successful reasoning pass with no findings.</p></div>}
