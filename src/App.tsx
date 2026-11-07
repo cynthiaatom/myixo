@@ -86,7 +86,13 @@ export default function App(){
     setDecisionStorageMode('loading');setDecisionStorageMessage('');
     void fetchDecisions().then(records=>{
       if(cancelled)return;
-      // Do not auto-upload temporary decisions or merge them into another account.
+      // Do not overwrite temporary work when someone signs into an account.
+      // Never silently upload unauthenticated drafts into a private profile.
+      if(decisionRef.current.length>0){
+        setDecisionStorageMode('session');
+        setDecisionStorageMessage('Temporary decisions already exist in this tab. They have not been uploaded or replaced. After reviewing them, start a new session to load account decisions.');
+        return;
+      }
       decisionRef.current=records;setDecisions(records);
       setDecisionStorageMode('private');setDecisionStorageMessage('');
     }).catch((error:unknown)=>{
