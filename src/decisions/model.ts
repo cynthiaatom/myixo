@@ -7,7 +7,7 @@ export type DecisionCheckIn={
 export type DecisionRecord={
   id:string;title:string;nextStep:string;expectedOutcome:string;
   reviewDate:string;status:DecisionStatus;createdAt:string;
-  updatedAt:string;checkIns:DecisionCheckIn[];
+  updatedAt:string;checkIns:DecisionCheckIn[];revision?:number;
 };
 export type DecisionData={title:string;nextStep:string;expectedOutcome:string;reviewDate:string};
 const clean=(value:string,max=1000)=>value.trim().slice(0,max);
