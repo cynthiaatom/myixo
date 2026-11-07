@@ -1,7 +1,9 @@
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
+import {decisionStorage} from '../../lib/private-decisions.js';
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
+  if(req.query?.resource==='decisions')return decisionStorage(req,res);
   if(req.query?.resource==='decision-capabilities'){
     if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
     try{
