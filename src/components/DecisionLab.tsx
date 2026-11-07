@@ -11,6 +11,10 @@ export default function DecisionLab(){
   const [result,setResult]=useState<ReasoningResult|null>(null);
   const [evidence,setEvidence]=useState<MemoryFact[]>([]);
   const [status,setStatus]=useState('');
+  const [nextStep,setNextStep]=useState('');
+  const [reviewDate,setReviewDate]=useState('');
+  const [chosenOutcome,setChosenOutcome]=useState('');
+  const [copyState,setCopyState]=useState('');
   const [error,setError]=useState('');
   const [working,setWorking]=useState(false);
   const [contextState,setContextState]=useState<'ready'|'insufficient_context'|'unknown'>('unknown');
@@ -28,6 +32,11 @@ export default function DecisionLab(){
       try{setResult(await waitForReasoning(job,'decision',s=>setStatus(s)))}finally{close()}
     }catch(e:any){await reportUnobservedFailure(job,'decision','think_through',e);setError('I could not complete that analysis. You can try again when you are ready.')}
     finally{setWorking(false)}
+  };
+
+  const copyPlan=async()=>{
+    const plan=['My iXo decision follow-through draft','Decision: '+input.decision,'Next step: '+nextStep,'Expected outcome: '+(chosenOutcome||input.desiredOutcome||'Not specified'),'Review date: '+(reviewDate||'Not set')].join('\n');
+    try{await navigator.clipboard.writeText(plan);setCopyState('Copied. This draft is not yet saved to your iXo account.')}catch{setCopyState('Could not copy automatically. Please copy the fields manually.')}
   };
 
   const arr=(x:unknown)=>Array.isArray(x)?x:[];
@@ -49,6 +58,7 @@ export default function DecisionLab(){
     </div>
     <div className="decisionResult">{result?<><div className="eyebrow">DECISION ANALYSIS &middot; GROUNDED IN iXo CONTEXT</div><h2>{String(result.summary||'Decision context')}</h2>
       <ResultGroup title="WHAT iXo KNOWS" values={arr(result.known_context)}/><ResultGroup title="GOALS AFFECTED" values={arr(result.goals_affected)}/><ResultGroup title="CONSTRAINTS" values={arr(result.constraints)}/><ResultGroup title="OPTIONS / TRADEOFFS" values={arr(result.tradeoffs).length?arr(result.tradeoffs):arr(result.options)}/><ResultGroup title="ASSUMPTIONS WORTH TESTING" values={arr(result.assumptions)}/><ResultGroup title="IMPORTANT UNKNOWNS" values={arr(result.unknowns||result.missing_information)}/><ResultGroup title="RISKS / DEPENDENCIES" values={arr(result.risks_dependencies)}/><ResultGroup title="WHAT WOULD CHANGE THE ANALYSIS?" values={arr(result.what_would_change)}/><ResultGroup title="PRACTICAL NEXT QUESTIONS" values={arr(result.clarifying_questions)}/>
+      <section className="resultGroup" aria-label="Decision follow-through draft"><h3>TURN THIS DECISION INTO ACTION</h3><p>Choose your next step and when you want to revisit it. This is a draft: account saving and automatic reminders are not enabled yet.</p><label>NEXT STEP<textarea value={nextStep} onChange={e=>setNextStep(e.target.value)} placeholder="What will you actually do next?"/></label><label>EXPECTED OUTCOME<textarea value={chosenOutcome} onChange={e=>setChosenOutcome(e.target.value)} placeholder="What would success look like?"/></label><label>REVIEW DATE<input type="date" value={reviewDate} onChange={e=>setReviewDate(e.target.value)}/></label><button type="button" disabled={!nextStep.trim()} onClick={copyPlan}>Copy follow-through plan</button>{copyState&&<p role="status">{copyState}</p>}</section>
       <section className="personalizationProof"><div className="eyebrow">WHY THIS IS PERSONALIZED</div>{citedEvidence.length>0?<><p>Native iXo returned explicit references to {citedEvidence.length} selected memories. These are facts the analysis cited, not merely facts retrieved.</p>{citedEvidence.map(f=><p key={f.id}><b>{f.category}</b> · {f.value}</p>)}{personalSections.length>0&&<p><strong>How context entered the analysis:</strong> {personalSections.slice(0,4).map(String).join(' · ')}</p>}</>:<p>No specific durable memory was cited in this decision result. Treat this as general reasoning informed by your entered decision, not verified personalization. {evidence.length>0?'Some memories were retrieved, but retrieval alone does not prove they changed the analysis.':''}</p>}<p className="portraitCaveat">This is an evidence audit, not a controlled comparison with a separate generic AI run.</p></section><details className="contextUsed"><summary>Retrieved personal context · {evidence.length}</summary>{evidence.map(f=><p key={f.id}><b>{f.category}</b> &middot; {f.value}</p>)}</details>
     </>:<div className="quietState compact"><h2>Your analysis will appear here.</h2><p>Start with the decision itself. The optional fields can add context when you have it.</p></div>}</div></div>
   </section>
