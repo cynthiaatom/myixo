@@ -28,7 +28,7 @@ export default async function handler(req,res){
     const action=req.body?.action;
     if(action==='request'){
       const email=String(req.body?.email||'').trim().toLowerCase();
-      if(email.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+      if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
         return res.status(400).json({error:'Enter a valid iXo account email address'});
       try{
         const check=await fetch(BASE+'/public/landing-catalog',{cache:'no-store',signal:AbortSignal.timeout(5000)});
@@ -50,7 +50,7 @@ export default async function handler(req,res){
     if(action==='confirm'){
       const challenge_id=String(req.body?.challenge_id||'');
       const code=String(req.body?.code||'');
-      if(challenge_id.length<4||challenge_id.length>200||!/^\\d{6}$/.test(code))
+      if(challenge_id.length<4||challenge_id.length>200||!/^\d{6}$/.test(code))
         return res.status(400).json({error:'Enter the six-digit code from your email'});
       try{
         const upstream=await fetch(BASE+'/auth/email-code/confirm',{
