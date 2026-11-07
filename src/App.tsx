@@ -6,14 +6,19 @@ import ProductNav,{type ProductView} from './components/ProductNav';
 import TodayView from './components/TodayView';
 import MirrorView from './components/MirrorView';
 import DecisionLab from './components/DecisionLab';
+import DecisionWorkspace from './components/DecisionWorkspace';
+import WeeklyPersonalReview from './components/WeeklyPersonalReview';
+import {createDecision,type DecisionData,type DecisionRecord} from './decisions/model';
+import {fetchDecisions,commitDecisionChange,DecisionStorageError} from './decisions/persistence';
 import AskIxoView from './components/AskIxoView';
 import TimelineView from './components/TimelineView';
 import type {NativeIntelligenceContext} from './intelligence/types';
 import {changedAreas,demoPersonalMap,knowledgeDepth,labels,mapProgress,parseNativePersonalMap,questions,type CategoryId,type PersonalMapModel} from './ixo';
 import {buildLearningPlan,learningDelta,type LearningPlan,type LearningDelta} from './learning';
 import {generateAdaptiveQuestion,submitAdaptiveAnswer} from './services/adaptive-learning-native';
+import {getGoogleIdentityToken,googleAvailability} from './services/google-auth';
 
-type Stage='hero'|'demo'|'done'|'connect'|'memory'|'today'|'mirror'|'decide'|'ask'|'timeline';
+type Stage='hero'|'demo'|'done'|'connect'|'memory'|'today'|'mirror'|'decide'|'decisions'|'weekly'|'ask'|'timeline';
 type User={email:string,full_name?:string|null,plan?:string|null};
 type Option={id:string,label:string};
 type BriefingQuestion={id:string,revision:number,state:string,type:string,text:string,options:Option[],allow_custom:boolean,allow_skip:boolean,reason:string};
@@ -35,6 +40,19 @@ export default function App(){
   const [previousLabel,setPreviousLabel]=useState(mapProgress(demoPersonalMap()).label);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
+  const [signInChallenge,setSignInChallenge]=useState('');
+  const [signInCode,setSignInCode]=useState('');
+  const [signInResendAt,setSignInResendAt]=useState(0);
+  const [storageBusy,setStorageBusy]=useState(false);
+  const [storageCheck,setStorageCheck]=useState<{capability_http_status:number;projects_http_status:number;dedicated_decision_contract_verified:boolean;feature_flags:Record<string,boolean|null>}|null>(null);
+  const [storageError,setStorageError]=useState('');
+
+  const [decisions,setDecisions]=useState<DecisionRecord[]>([]);
+  const decisionRef=useRef<DecisionRecord[]>([]);
+  const savingDecision=useRef(false);
+  const [decisionPending,setDecisionPending]=useState(false);
+  const [decisionStorageMode,setDecisionStorageMode]=useState<'session'|'loading'|'private'|'error'>('session');
+  const [decisionStorageMessage,setDecisionStorageMessage]=useState('');
   const [user,setUser]=useState<User|null>(null);
   const [session,setSession]=useState<BriefingSession|null>(null);
   const [connecting,setConnecting]=useState(false);
@@ -61,8 +79,50 @@ export default function App(){
   const [verifyError,setVerifyError]=useState('');
   const eventSource=useRef<EventSource|null>(null);
 
+  useEffect(()=>{decisionRef.current=decisions},[decisions]);
+  useEffect(()=>{
+    if(!user){setDecisionStorageMode('session');return}
+    let cancelled=false;
+    setDecisionStorageMode('loading');setDecisionStorageMessage('');
+    void fetchDecisions().then(records=>{
+      if(cancelled)return;
+      // Do not overwrite temporary work when someone signs into an account.
+      // Never silently upload unauthenticated drafts into a private profile.
+      if(decisionRef.current.length>0){
+        setDecisionStorageMode('session');
+        setDecisionStorageMessage('Temporary decisions already exist in this tab. They have not been uploaded or replaced. After reviewing them, start a new session to load account decisions.');
+        return;
+      }
+      decisionRef.current=records;setDecisions(records);
+      setDecisionStorageMode('private');setDecisionStorageMessage('');
+    }).catch((error:unknown)=>{
+      if(cancelled)return;
+      // A missing dedicated database remains an explicit temporary session,
+      // never a silent local "save" or an unauthorized shared-database write.
+      const unavailable=error instanceof DecisionStorageError&&(error.status===503||error.status===401);
+      setDecisionStorageMode(unavailable?'session':'error');
+      setDecisionStorageMessage(unavailable?
+        'Private account storage is not active. Your decisions remain temporary in this tab.':
+        'Private decision storage could not be loaded. Editing is temporarily unavailable until a retry.');
+    });
+    return ()=>{cancelled=true};
+  },[user?.email]);
+
+  const applyDecisionChange=async(updater:(current:DecisionRecord[])=>DecisionRecord[])=>{
+    if(savingDecision.current)throw new Error('A decision update is already being processed.');
+    if(decisionStorageMode==='loading'||decisionStorageMode==='error')
+      throw new Error('Storage status is not ready. Please retry after the storage connection is available.');
+    savingDecision.current=true;setDecisionPending(true);
+    try{
+      const before=decisionRef.current;
+      const next=updater(before);
+      const committed=decisionStorageMode==='private'?await commitDecisionChange(before,next):next;
+      decisionRef.current=committed;setDecisions(committed);
+    }finally{savingDecision.current=false;setDecisionPending(false)}
+  };
   const expireSession=()=>{
     eventSource.current?.close();
+    decisionRef.current=[];setDecisions([]);setDecisionStorageMode('session');
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setLearningPlan(null);setAdaptiveQuestion('');setAdaptiveBusy(false);adaptiveStarted.current=false;
     setLastLearning(null);setRewardAreas([]);setCoverageShift(null);setMapReady(false);setModel(demoPersonalMap());setInitState('AUTH_REQUIRED');setStage('connect');
     setConnectError('Your iXo session expired. Reconnect to continue learning.');
@@ -187,19 +247,81 @@ export default function App(){
 
   useEffect(()=>{restore();return()=>eventSource.current?.close()},[]);
 
+  const completeConnection=async(d:any)=>{
+    setUser(d.user);setPassword('');
+    setInitState('LOADING');
+    try{await fetchMap();setInitState('READY')}catch(e:any){setMapReady(false);setInitState('PARTIAL');if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}return}
+    const current=await getBriefing().catch(()=>null);
+    if(current)setSession(current);
+  };
   const connect=async()=>{
     setConnecting(true);setConnectError('');
     try{
       const r=await fetch('/api/ixo/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email,password})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(d.error||'Could not connect');
-      setUser(d.user);setPassword('');
-      setInitState('LOADING');
-      try{await fetchMap();setInitState('READY')}catch(e:any){setMapReady(false);setInitState('PARTIAL');if(e?.code==='verified_email_required'){setVerifyError('');setVerifyOpen(true)}return}
-      const current=await getBriefing().catch(()=>null);
-      if(current)setSession(current);
+      await completeConnection(d);
     }catch(e:any){setConnectError(e.message||'Could not connect to iXo')}
     finally{setConnecting(false)}
+  };
+  const connectGoogle=async()=>{
+    if(connecting)return;
+    setConnecting(true);setConnectError('');
+    try{
+      const available=await googleAvailability();
+      if(!available.ready)throw new Error(available.reason+' The iXo Firebase administrator must add this exact My iXo hostname. Until then, Google sign-in works on the official iXo website.');
+      const id_token=await getGoogleIdentityToken();
+      const r=await fetch('/api/ixo/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:'google',id_token})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||'Google sign-in failed');
+      await completeConnection(d);
+    }catch(e:any){setConnectError(e?.message||'Google sign-in could not be completed')}
+    finally{setConnecting(false)}
+  };
+
+  const requestSignInCode=async()=>{
+    if(connecting||!email.trim())return;
+    setConnecting(true);setConnectError('');
+    try{
+      const r=await fetch('/api/ixo/login',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({provider:'email_code',action:'request',email:email.trim()})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||'iXo could not send a code');
+      setSignInChallenge(d.challenge_id);
+      setSignInCode('');
+      setSignInResendAt(Date.now()+Number(d.resend_after||60)*1000);
+    }catch(e:any){setConnectError(e.message||'Could not send verification email')}
+    finally{setConnecting(false)}
+  };
+  const confirmSignInCode=async()=>{
+    if(connecting||!signInChallenge||!/^\d{6}$/.test(signInCode))return;
+    setConnecting(true);setConnectError('');
+    try{
+      const r=await fetch('/api/ixo/login',{method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({provider:'email_code',action:'confirm',challenge_id:signInChallenge,code:signInCode})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||'iXo did not accept this code');
+      setSignInChallenge('');setSignInCode('');
+      await completeConnection(d);
+    }catch(e:any){setConnectError(e.message||'Could not verify sign-in code')}
+    finally{setConnecting(false)}
+  };
+
+  const checkNativeDecisionStorage=async()=>{
+    if(!user||storageBusy)return;
+    setStorageBusy(true);setStorageCheck(null);setStorageError('');
+    try{
+      const r=await fetch('/api/ixo/session?resource=decision-capabilities',{cache:'no-store'});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||'Native capability check unavailable');
+      setStorageCheck({
+        capability_http_status:Number(data.capability_http_status||0),
+        projects_http_status:Number(data.projects_http_status||0),
+        dedicated_decision_contract_verified:data.dedicated_decision_contract_verified===true,
+        feature_flags:data.feature_flags&&typeof data.feature_flags==='object'?data.feature_flags:{}
+      });
+    }catch(e:any){setStorageError(e.message||'Unable to inspect native iXo capabilities')}
+    finally{setStorageBusy(false)}
   };
 
   const loadMemoryData=async()=>{
@@ -239,6 +361,7 @@ export default function App(){
   };
 
   const openView=async(view:ProductView)=>{
+    if(view==='decisions'||view==='weekly'){setStage(view);return}
     if(!user){setStage('connect');return}
     setConnectError('');
     if(view==='me'){setStage('hero');return}
@@ -252,11 +375,18 @@ export default function App(){
     finally{setMemoryLoading(false)}
   };
 
+  const addDecision=async(data:DecisionData)=>{
+    const record=createDecision(data);
+    await applyDecisionChange(existing=>[record,...existing]);
+    setStage('decisions');
+  };
+
   const openMemory=async()=>openView('memory');
 
   const disconnect=async()=>{
     eventSource.current?.close();
     await fetch('/api/ixo/logout',{method:'POST'});
+    decisionRef.current=[];setDecisions([]);setDecisionStorageMode('session');
     setUser(null);setSession(null);setMemory(null);setNativeContext(null);setEmail('');setPassword('');setModel(demoPersonalMap());setMapReady(false);setStage('hero');
   };
 
@@ -461,10 +591,10 @@ export default function App(){
   const currentHelper=user?(question?.reason||'iXo chose this question based on what it already knows and what would add the most useful context.'):questions[demoQi]?.helper;
   const currentPlaceholder=user?'Tell iXo in your own words...':questions[demoQi]?.placeholder;
   const chips=user?(question?.options||[]):questions[demoQi].chips.map((label,i)=>({id:String(i),label}));
-  const activeView:ProductView=stage==='memory'?'memory':stage==='today'?'today':stage==='mirror'?'mirror':stage==='decide'?'decide':stage==='ask'?'ask':stage==='timeline'?'timeline':'me';
+  const activeView:ProductView=stage==='memory'?'memory':stage==='today'?'today':stage==='mirror'?'mirror':stage==='decide'?'decide':stage==='decisions'?'decisions':stage==='weekly'?'weekly':stage==='ask'?'ask':stage==='timeline'?'timeline':'me';
 
   return <main><div className="veil"/><header><div className="logo"><span className="my">MY</span><span className="ixo">iXo</span></div><div className="demo">{user?'iXo CONNECTED':'EXECUTIVE DEMO'}</div></header><div className="wrap">
-    {user&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
+    {(user||stage==='decisions'||stage==='weekly')&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
     {memoryLoading&&<div className="contextLoading">Loading your iXo context...</div>}
     {stage==='hero'&&initState==='LOADING'&&<section className="hero loadingHero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Syncing your real iXo context before showing your Personal Map.</p><div className="syncPill"><span/>Checking session {String.fromCodePoint(0x00B7)} loading native Personal Map</div></div><div className="mapLoading"><div className="mapLoadingCore">MY<br/><b>iXo</b></div><p>SYNCING PERSONAL MAP</p></div></section>}
     {stage==='hero'&&(initState==='PARTIAL'||initState==='ERROR')&&user&&<section className="hero"><div><div className="eyebrow">CONNECTED {String.fromCodePoint(0x00B7)} PERSONAL MAP UNAVAILABLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Connected to iXo, but the Personal Map couldn't be loaded.</p><div className="actions"><button className="primary" onClick={retryPersonalMap}>Retry Personal Map</button><button onClick={()=>setStage('connect')}>Connection</button></div><p className="note">Your native Personal Map is unavailable right now. Durable Memory is separate and is not being used as a replacement.</p></div></section>}
@@ -473,15 +603,24 @@ export default function App(){
     {stage==='demo'&&<section className="flow"><div className="panel">{phase==='thinking'?<div className="center"><div className="eyebrow">LIVE iXo STATUS</div><div className="statusSteps">{liveStatuses.map((s,i)=><div key={s} className={i<processStep?'complete':i===processStep?'current':''}><span>{i<processStep?String.fromCodePoint(0x2713):i+1}</span><b>{s}</b></div>)}</div><div className="scan"/></div>:phase==='reveal'?<div className="center"><div className="eyebrow">PERSONAL MAP UPDATED</div><h2>{changed.length?('iXo added context to '+changed.length+' '+(changed.length===1?'area':'areas')):'Your answer added useful context to iXo'}</h2><div className="jump">{previousLabel} {String.fromCodePoint(0x2192)} {mapProgress(model).label}</div>{lastLearning&&<div className="learningReceipt"><div className="eyebrow">WHAT I LEARNED</div>{lastLearning.answer&&<div className="learningEvidence stated"><span>YOU SAID</span><p>{lastLearning.answer}</p></div>}{lastLearning.items.length?lastLearning.items.map(x=><div className={'learningEvidence '+x.kind} key={x.id}><span>{x.label.toUpperCase()} · {x.category.replace(/[_-]+/g,' ')}</span><p>{x.value}</p></div>):<p className="helper">Your answer was accepted, but iXo has not exposed a new or revised durable memory from it yet.</p>}<div className="learningMeta">Profile revision {lastLearning.profileRevision} · index {lastLearning.indexStatus}</div></div>}{changed.length>0?<div className="learned">{changed.map(c=><div key={c}><b>{labels[c]}</b> {String.fromCodePoint(0x00B7)} new saved context</div>)}</div>:<p className="helper">The answer was saved, but it did not create a newly covered Personal Map area. iXo can still use the context.</p>}<button className="primary" onClick={()=>setPhase('ask')}>Continue &rarr;</button></div>:<><div className="eyebrow">{questionLabel} {String.fromCodePoint(0x00B7)} {progress.label} {model.mode==='areas'?'AREAS':'DIMENSIONS'} UNDERSTOOD</div>{currentPrompt?<>{user&&learningPlan?.next&&<div className="learningTarget"><span>WHY THIS QUESTION</span><b>{labels[learningPlan.next.area]} · {learningPlan.next.construct}</b><p>{learningPlan.next.reason} The goal is to {learningPlan.next.questionIntent}.</p></div>}<h2>{currentPrompt}</h2><p className="helper">{currentHelper}</p><div className="chips">{chips.map(c=><button key={c.id} onClick={()=>user?toggleOption(c.id):setAnswer(c.label)} className={(user?selected.includes(c.id):answer===c.label)?'selected':''}>{c.label}</button>)}</div>{(!user||question?.allow_custom!==false)&&<textarea value={answer} onChange={e=>setAnswer(e.target.value)} placeholder={currentPlaceholder}/>} {connectError&&<div className="connectError">{connectError}</div>}<div className="actions"><button className="primary" onClick={()=>user?sendNative(false):sendDemo()}>Send to iXo &rarr;</button>{user&&question?.allow_skip&&<button onClick={()=>sendNative(true)}>Skip</button>}{!user&&<button onClick={()=>{setDemoQi(Math.min(demoQi+1,questions.length-1));setAnswer('')}}>Skip</button>}</div></>:<div className="center"><div className="thinking">{session?.generation?.state==='generating'?'iXo is preparing your next question...':'No question is available yet.'}</div></div>}</>}</div><Map model={model} highlight={changed}/></section>}
 
     {stage==='memory'&&memory&&<MemoryInspector memory={memory} setMemory={m=>{setMemory(m);setNativeContext(null)}} onClose={()=>setStage('hero')}/>}
-    {stage==='today'&&memory&&<TodayView memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')} onVerificationRequired={()=>{setVerifyError('');setVerifyOpen(true)}}/>}
+    {stage==='today'&&memory&&<TodayView decisions={decisions} onOpenDecisions={()=>setStage('decisions')} memory={memory as any} question={question?{id:question.id,text:question.text,reason:question.reason}:null} onMirror={()=>openView('mirror')} onDecide={()=>openView('decide')} onVerificationRequired={()=>{setVerifyError('');setVerifyOpen(true)}}/>}
     {stage==='mirror'&&memory&&<MirrorView memory={memory as any} nativeContext={nativeContext} onMemory={()=>openView('memory')} onDecide={()=>openView('decide')}/>}
-    {stage==='decide'&&<DecisionLab/>}
+    {stage==='decide'&&<DecisionLab onAddDecision={addDecision}/>}
+    {stage==='decisions'&&<DecisionWorkspace decisions={decisions} storageMode={decisionStorageMode} storageMessage={decisionStorageMessage} pending={decisionPending} onChange={applyDecisionChange} onAnalyze={()=>{if(user)setStage('decide');else setStage('connect')}}/>}
+    {stage==='weekly'&&<WeeklyPersonalReview decisions={decisions} onOpenDecisions={()=>setStage('decisions')}/>}
     {stage==='ask'&&<AskIxoView/>}
     {stage==='timeline'&&memory&&<TimelineView memory={memory as any}/>}
 
     {stage==='done'&&<section className="finish"><Map model={model} highlight={changed}/><div className="eyebrow">{user?'iXo BRIEFING COMPLETE':'PERSONAL MAP UPDATED'}</div><h2>{user?'Your iXo has a clearer picture of you.':'Your iXo knows more than it did 10 minutes ago.'}</h2><p>{user?(session?.completion_summary||'Your Personal Map will keep evolving as iXo learns from future conversations and connected context.'):'One continuously evolving understanding of you.'}</p><button className="primary" onClick={()=>setStage('hero')}>Return to My iXo &rarr;</button>{!user&&<button onClick={resetDemo}>Reset demo</button>}</section>}
 
-    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map &rarr;</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Use the same email and password you use for iXo. Your password is sent server-to-server to iXo for authentication and is not stored by this site.</p><div className="loginForm"><label>iXo email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting...':'Connect My iXo '+String.fromCodePoint(0x2192)}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('hero')}>&larr; Back</button></>}</section>}
+    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><section className="resultGroup"><h3>Decision Continuity — Native storage check</h3><p>Read-only inspection. No decisions or private project records are written or shared.</p><button disabled={storageBusy} onClick={()=>void checkNativeDecisionStorage()}>{storageBusy?'Checking...':'Check native iXo storage'}</button>{storageError&&<p role="status">{storageError}</p>}{storageCheck&&<div role="status"><p>Native capabilities: HTTP {storageCheck.capability_http_status} · Projects: HTTP {storageCheck.projects_http_status}</p><p>{storageCheck.dedicated_decision_contract_verified?'Structured decision record contract verified.':'Structured decision/check-in persistence is not yet verified. Project access alone is not sufficient.'}</p><p>Relevant feature flags: {Object.entries(storageCheck.feature_flags).map(([key,value])=>key+' '+(value===null?'unknown':value?'on':'off')).join(' · ')||'No matching flags reported'}</p></div>}</section><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map &rarr;</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Connect the same iXo account you already use. Google sign-in requires My iXo to be authorized by the native iXo Google provider.</p><div className="loginForm"><button className="primary" disabled={connecting} onClick={()=>void connectGoogle()}>{connecting?'Connecting...':'Continue with Google'}</button><p className="securityNote">If Google reports that this domain is not yet authorized, the native iXo Firebase administrator needs to enable it. <a href="https://ixo.chat/login" target="_blank" rel="noopener noreferrer">Open official iXo sign-in</a></p><div className="eyebrow">OR USE EMAIL</div><label>iXo email<input type="email" value={email} disabled={Boolean(signInChallenge)} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label>
+    {signInChallenge?<div className="decisionForm">
+      <p>Enter the six-digit code iXo sent to your email. Codes expire; do not share them with anyone.</p>
+      <label>Six-digit sign-in code<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={signInCode} onChange={e=>setSignInCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
+      <button className="primary" disabled={connecting||!/^\d{6}$/.test(signInCode)} onClick={()=>void confirmSignInCode()}>{connecting?'Verifying...':'Sign in with code'}</button>
+      <div className="actions"><button disabled={connecting} onClick={()=>{if(Date.now()<signInResendAt){setConnectError('Please allow a minute before requesting another code.');return}void requestSignInCode()}}>Resend code</button><button onClick={()=>{setSignInChallenge('');setSignInCode('');setConnectError('')}}>Use another method</button></div>
+    </div>:<button disabled={connecting||!email.trim()} onClick={()=>void requestSignInCode()}>{connecting?'Sending...':'Email me a sign-in code'}</button>}
+    <div className="eyebrow">OR USE PASSWORD</div><label>iXo password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password"/></label>{connectError&&<div className="connectError">{connectError}</div>}<button className="primary" disabled={connecting||!email||!password} onClick={connect}>{connecting?'Connecting...':'Connect My iXo '+String.fromCodePoint(0x2192)}</button></div><p className="securityNote">We never ask for API keys, browser cookies, or bearer tokens.</p><button onClick={()=>setStage('decisions')}>Explore My Decisions (session prototype)</button><button onClick={()=>setStage('hero')}>&larr; Back</button></>}</section>}
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory',"Your answer is saved into iXo's revisioned personal context."],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
     {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>This email is used only to satisfy iXo's contact verification requirement. It does not change your iXo login.</p>{verifyStep==='email'?<form className="verifyForm" onSubmit={e=>{e.preventDefault();if(!verifyBusy&&contactEmailValid)void sendVerification()}}><label>Contact email<input type="email" placeholder="name@example.com" value={contactEmail} onChange={e=>{setContactEmail(e.target.value);if(verifyError)setVerifyError('')}} autoComplete="email"/></label></form>:<label className="verifyField">Enter the 6-digit code<input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verifyCode} onChange={e=>{const next=e.target.value.trim();if(/^[0-9]*$/.test(next)&&next.length<=6){setVerifyCode(next);if(verifyError)setVerifyError('')}}} onKeyDown={e=>{if(e.key==='Enter'&&!verifyBusy&&verificationCodeValid){e.preventDefault();void confirmVerification()}}} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmailValid} onClick={sendVerification}>{verifyBusy?'Sending...':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||!verificationCodeValid} onClick={confirmVerification}>{verifyBusy?'Confirming...':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Not now</button></div></section></div>}
