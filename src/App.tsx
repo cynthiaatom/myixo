@@ -39,6 +39,10 @@ export default function App(){
   const [signInChallenge,setSignInChallenge]=useState('');
   const [signInCode,setSignInCode]=useState('');
   const [signInResendAt,setSignInResendAt]=useState(0);
+  const [storageBusy,setStorageBusy]=useState(false);
+  const [storageCheck,setStorageCheck]=useState<{capability_http_status:number;projects_http_status:number;dedicated_decision_contract_verified:boolean;feature_flags:Record<string,boolean|null>}|null>(null);
+  const [storageError,setStorageError]=useState('');
+
   const [user,setUser]=useState<User|null>(null);
   const [session,setSession]=useState<BriefingSession|null>(null);
   const [connecting,setConnecting]=useState(false);
@@ -249,6 +253,23 @@ export default function App(){
       await completeConnection(d);
     }catch(e:any){setConnectError(e.message||'Could not verify sign-in code')}
     finally{setConnecting(false)}
+  };
+
+  const checkNativeDecisionStorage=async()=>{
+    if(!user||storageBusy)return;
+    setStorageBusy(true);setStorageCheck(null);setStorageError('');
+    try{
+      const r=await fetch('/api/ixo/session?resource=decision-capabilities',{cache:'no-store'});
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||'Native capability check unavailable');
+      setStorageCheck({
+        capability_http_status:Number(data.capability_http_status||0),
+        projects_http_status:Number(data.projects_http_status||0),
+        dedicated_decision_contract_verified:data.dedicated_decision_contract_verified===true,
+        feature_flags:data.feature_flags&&typeof data.feature_flags==='object'?data.feature_flags:{}
+      });
+    }catch(e:any){setStorageError(e.message||'Unable to inspect native iXo capabilities')}
+    finally{setStorageBusy(false)}
   };
 
   const loadMemoryData=async()=>{
@@ -530,7 +551,7 @@ export default function App(){
 
     {stage==='done'&&<section className="finish"><Map model={model} highlight={changed}/><div className="eyebrow">{user?'iXo BRIEFING COMPLETE':'PERSONAL MAP UPDATED'}</div><h2>{user?'Your iXo has a clearer picture of you.':'Your iXo knows more than it did 10 minutes ago.'}</h2><p>{user?(session?.completion_summary||'Your Personal Map will keep evolving as iXo learns from future conversations and connected context.'):'One continuously evolving understanding of you.'}</p><button className="primary" onClick={()=>setStage('hero')}>Return to My iXo &rarr;</button>{!user&&<button onClick={resetDemo}>Reset demo</button>}</section>}
 
-    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map &rarr;</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Connect the same iXo account you already use. Google sign-in requires My iXo to be authorized by the native iXo Google provider.</p><div className="loginForm"><button className="primary" disabled={connecting} onClick={()=>void connectGoogle()}>{connecting?'Connecting...':'Continue with Google'}</button><p className="securityNote">If Google reports that this domain is not yet authorized, the native iXo Firebase administrator needs to enable it. <a href="https://ixo.chat/login" target="_blank" rel="noopener noreferrer">Open official iXo sign-in</a></p><div className="eyebrow">OR USE EMAIL</div><label>iXo email<input type="email" value={email} disabled={Boolean(signInChallenge)} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label>
+    {stage==='connect'&&<section className="panel connect"><div className="eyebrow">CONNECT MY iXo</div>{user?<><h2>Connected to your iXo</h2><p className="connectedAs">{user.full_name||user.email}</p><p>Your credentials are not stored in this browser. The connection uses secure, HttpOnly session cookies and automatically refreshes your iXo session when needed.</p><section className="resultGroup"><h3>Decision Continuity — Native storage check</h3><p>Read-only inspection. No decisions or private project records are written or shared.</p><button disabled={storageBusy} onClick={()=>void checkNativeDecisionStorage()}>{storageBusy?'Checking...':'Check native iXo storage'}</button>{storageError&&<p role="status">{storageError}</p>}{storageCheck&&<div role="status"><p>Native capabilities: HTTP {storageCheck.capability_http_status} · Projects: HTTP {storageCheck.projects_http_status}</p><p>{storageCheck.dedicated_decision_contract_verified?'Structured decision record contract verified.':'Structured decision/check-in persistence is not yet verified. Project access alone is not sufficient.'}</p><p>Relevant feature flags: {Object.entries(storageCheck.feature_flags).map(([key,value])=>key+' '+(value===null?'unknown':value?'on':'off')).join(' · ')||'No matching flags reported'}</p></div>}</section><div className="actions"><button className="primary" onClick={()=>setStage('hero')}>Use My Personal Map &rarr;</button><button onClick={disconnect}>Disconnect</button></div></>:<><h2>Sign in to your iXo</h2><p>Connect the same iXo account you already use. Google sign-in requires My iXo to be authorized by the native iXo Google provider.</p><div className="loginForm"><button className="primary" disabled={connecting} onClick={()=>void connectGoogle()}>{connecting?'Connecting...':'Continue with Google'}</button><p className="securityNote">If Google reports that this domain is not yet authorized, the native iXo Firebase administrator needs to enable it. <a href="https://ixo.chat/login" target="_blank" rel="noopener noreferrer">Open official iXo sign-in</a></p><div className="eyebrow">OR USE EMAIL</div><label>iXo email<input type="email" value={email} disabled={Boolean(signInChallenge)} onChange={e=>setEmail(e.target.value)} autoComplete="username"/></label>
     {signInChallenge?<div className="decisionForm">
       <p>Enter the six-digit code iXo sent to your email. Codes expire; do not share them with anyone.</p>
       <label>Six-digit sign-in code<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={signInCode} onChange={e=>setSignInCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
