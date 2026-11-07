@@ -2,17 +2,22 @@ import {useState} from 'react';
 import type {DecisionData} from '../decisions/model';
 
 export default function DecisionContinuityDraft({decision,desiredOutcome,onAdd}:{
-  decision:string;desiredOutcome:string;onAdd:(data:DecisionData)=>void
+  decision:string;desiredOutcome:string;onAdd:(data:DecisionData)=>Promise<void>
 }){
   const [nextStep,setNextStep]=useState('');
   const [expected,setExpected]=useState(desiredOutcome);
   const [reviewDate,setReviewDate]=useState('');
   const [message,setMessage]=useState('');
-  const add=()=>{
+  const [saving,setSaving]=useState(false);
+  const add=async()=>{
     if(!decision.trim()||!nextStep.trim()){setMessage('Decision and next step are required.');return}
-    onAdd({title:decision,nextStep,expectedOutcome:expected,reviewDate});
-    setMessage('Added to My Decisions for this open app session; no account-level save yet.');
-    setNextStep('');
+    if(saving)return;
+    setSaving(true);setMessage('');
+    try{
+      await onAdd({title:decision,nextStep,expectedOutcome:expected,reviewDate});
+      setNextStep('');
+    }catch(e:any){setMessage(e?.message||'Decision could not be added. No save was confirmed.')}
+    finally{setSaving(false)}
   };
   return <section className="resultGroup" aria-label="Decision Continuity prototype">
     <div className="eyebrow">DECISION CONTINUITY · FOLLOW THROUGH</div>
@@ -22,7 +27,7 @@ export default function DecisionContinuityDraft({decision,desiredOutcome,onAdd}:
       <label>NEXT STEP · REQUIRED<textarea maxLength={1000} value={nextStep} onChange={e=>setNextStep(e.target.value)} placeholder="What will you try?"/></label>
       <label>EXPECTED OUTCOME · OPTIONAL<textarea maxLength={1000} value={expected} onChange={e=>setExpected(e.target.value)}/></label>
       <label>REVIEW DATE · OPTIONAL<input type="date" value={reviewDate} onChange={e=>setReviewDate(e.target.value)}/></label>
-      <button className="primary" onClick={add} disabled={!nextStep.trim()}>Add to My Decisions</button>
+      <button className="primary" onClick={()=>void add()} disabled={saving||!nextStep.trim()}>{saving?'Saving...':'Add to My Decisions'}</button>
     </div>
     {message&&<p role="status">{message}</p>}
   </section>;
