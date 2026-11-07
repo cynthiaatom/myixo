@@ -28,17 +28,11 @@ const load=()=>{
 };
 
 export async function googleAvailability(){
-  const [catalogResponse,projectResponse]=await Promise.all([
-    fetch('https://api.ai.atqm.us/api/v1/public/landing-catalog',{cache:'no-store'}),
-    fetch('https://identitytoolkit.googleapis.com/v1/projects?key='+encodeURIComponent(config.apiKey),{cache:'no-store'})
-  ]);
-  if(!catalogResponse.ok||!projectResponse.ok)throw new Error('Google sign-in configuration could not be verified.');
-  const catalog=await catalogResponse.json();
-  const project=await projectResponse.json();
-  const nativeEnabled=catalog?.auth?.google_auth_enabled===true;
-  const allowed=Array.isArray(project?.authorizedDomains)&&project.authorizedDomains.includes(location.hostname);
-  return {ready:nativeEnabled&&allowed,reason:!nativeEnabled?'iXo has Google sign-in disabled.':
-    !allowed?'The My iXo domain is not yet authorized in iXo Google authentication.':'Ready'};
+  const response=await fetch('/api/ixo/login?mode=google-availability',{cache:'no-store'});
+  if(!response.ok)throw new Error('Google sign-in configuration could not be verified.');
+  const result=await response.json();
+  return {ready:result.ready===true,reason:!result.provider_enabled?'iXo has Google sign-in disabled.':
+    !result.domain_authorized?'This My iXo domain is not authorized in iXo Google authentication.':'Ready'};
 }
 
 export async function getGoogleIdentityToken(){
