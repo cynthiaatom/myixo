@@ -1,3 +1,15 @@
+# My iXo private storage activation update — 2026-11-07
+
+**Dedicated Supabase project created:** `wmuwtgaxfihutroqiaqj` (My iXo, Atom Ventures organization, us-east-1), quoted project creation cost $0/month. Migration `create_myixo_private_decisions` applied to this project only. Database checks confirm `public.myixo_decisions` exists, RLS enabled, zero rows at creation, and `anon` and `authenticated` have no direct SELECT/INSERT rights.
+
+**Dedicated Edge function deployed:** `myixo-decisions` at `https://wmuwtgaxfihutroqiaqj.supabase.co/functions/v1/myixo-decisions`, verify_jwt disabled because it performs **explicit native iXo token authentication** against the official `/auth/me` on every request. Database administrative credentials are read from the function runtime's own Supabase environment. They are never sent to Vercel, GitHub, or the browser. Authentication-less and deliberately invalid-token calls both returned HTTP 401 when tested against the live function.
+
+**Vercel preview configured:** `MYIXO_PRIVATE_EDGE_URL` is set to the pinned function URL for preview branch `feature/decision-continuity-mvp-prototype` on existing My iXo Vercel project `prj_CoT2q792cWfdV01v7IKlhn91Xgmd`; it is not set in production. The backend's `lib/private-decisions.js` uses this branch-scoped Edge route if configured, refreshing native iXo access cookies when necessary and forwarding the bearer token only server-to-server to the exact approved function hostname. No key or token is embedded in the client.
+
+**Release gates still open:** two-account authenticated isolation test, real-account save / reload / update / delete, responsive browser UX review, recovery and retention policy. Do not claim cross-device persistence is verified until a real authenticated test succeeds. Production is unchanged.
+
+---
+
 # My iXo — Decision Continuity private persistence activation (2026-11-07)
 
 ## Current state
