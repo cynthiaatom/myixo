@@ -57,7 +57,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   };
   useEffect(()=>{void loadSpaces()},[authenticated]);
   useEffect(()=>{if(!authenticated||!activeSpace){setRemoteItems([]);return}
-    let live=true;setRemoteItems([]);setRemoteLoadingItems(true);workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace)).then(d=>{if(live){setRemoteItems(d.items||[]);setRecordsComplete(!d.has_more);setRemoteLoadingItems(false)}}).catch(e=>{if(live){setRemoteError(e.message);setRemoteLoadingItems(false)}});
+    let live=true;setRemoteItems([]);setRemoteLoadingItems(true);(async()=>{const all:WorkRecord[]=[];let offset=0;let complete=false;for(let page=0;page<25;page++){const d=await workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace)+'&offset='+offset);if(!live)return;all.push(...(d.items||[]));if(!d.has_more){complete=true;break}offset=d.next_offset;if(!Number.isInteger(offset)||offset<=0)break}if(live){setRemoteItems(all);setRecordsComplete(complete);setRemoteLoadingItems(false)}})().catch(e=>{if(live){setRemoteError(e.message);setRemoteLoadingItems(false)}});
     return()=>{live=false}
   },[activeSpace,authenticated]);
   const saveSpace=async()=>{
@@ -232,7 +232,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     <div className="workSessionNote">WORKSPACE STATUS · {showSample?'FICTIONAL DEMONSTRATION DATA':liveMode?'PRIVATE BUSINESS STORAGE ENABLED':remoteStatus==='signed-out'?'SIGN IN REQUIRED FOR CLOUD STORAGE':'DEMO / LOCAL PLANNING'} · {liveMode?'Your selected business workspace is stored separately from personal My Life records.':'Use fictional data for demos. Sign in and create a workspace for persistent records.'}</div>
     {locked&&<div className="workSessionNote" role="status">Secure storage is not ready. Editing is disabled until your business workspace loads. No changes will be silently stored only in this browser.</div>}
     {remoteLoadingItems&&<p role="status">Loading this company's records…</p>}
-    {!recordsComplete&&<div className="connectError" role="alert">More than 200 records exist. Summary totals may be incomplete until pagination is enabled. Do not rely on these figures for financial decisions.</div>}
+    {!recordsComplete&&<div className="connectError" role="alert">Some records could not be loaded. Summary totals may be incomplete. Please retry before relying on these figures. Do not rely on these figures for financial decisions.</div>}
     {remoteError&&<div className="connectError" role="alert">{remoteError}<button onClick={()=>setRemoteError('')}>Dismiss</button></div>}
     {authenticated&&remoteSpaces.length>0&&<label className="workField">Active business<select value={activeSpace} onChange={e=>{setRemoteItems([]);setActiveSpace(e.target.value);setShowSample(false);setNotice('');setCompany('');setObjective('');setQuestionAnswer('')}}>{remoteSpaces.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}
     <div className="workToolbar"><button disabled={authenticated} onClick={loadSample}>Load executive demo</button><button onClick={exportWorkspace} disabled={authenticated} title={authenticated?'Session export is disabled for cloud-backed records until a complete secure export is implemented.':'Export local demo session'}>Export demo session</button><label className="workImport">Import demo session<input disabled={authenticated} type="file" accept="application/json,.json" onChange={e=>{void importWorkspace(e.target.files?.[0]);e.target.value=''}}/></label></div>
