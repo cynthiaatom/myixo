@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import {selectBusinessEvidence} from '../lib/business-evidence.js';
+import {nativeBusinessIsolationGate} from '../lib/native-business-isolation.js';
 import {readFileSync,readdirSync,statSync} from 'node:fs';
 import {join,relative} from 'node:path';
 import {normalizeReasoningResult,ReasoningRepresentationError} from '../src/services/result-normalizer.ts';
@@ -6,6 +8,12 @@ import {validateReasoningResult,ReasoningSchemaError} from '../src/services/reas
 import {buildFailureTelemetry} from '../src/services/reasoning-observability.ts';
 import {parseNativePersonalMap,mapProgress} from '../src/ixo.ts';
 
+const scoped=[{id:'record-1',workspace_id:'workspace-a',kind:'task',title:'Overdue invoice',details:'Follow up',status:'open'}];
+assert.equal(selectBusinessEvidence(scoped,'overdue invoice',{workspaceId:'workspace-a'}).records.length,1);
+assert.throws(()=>selectBusinessEvidence(scoped,'invoice',{workspaceId:'workspace-b'}),/mixed-workspace/);
+assert.throws(()=>selectBusinessEvidence([...scoped,{...scoped[0],workspace_id:'workspace-b'}],'invoice',{workspaceId:'workspace-a'}),/mixed-workspace/);
+assert.equal(nativeBusinessIsolationGate({owner_authenticated:true}).allowed,false);
+assert.equal(nativeBusinessIsolationGate(Object.fromEntries(['owner_authenticated','workspace_membership_verified','workspace_chat_binding_verified','native_project_id_verified','native_memory_isolation_verified','native_tool_isolation_verified','run_ownership_verified','consent_to_business_transfer'].map(x=>[x,true]))).allowed,true);
 const askGood={answer:'synthetic',context_used:[],assumptions:[],missing_information:[],why_context_changed_answer:null,evidence_refs:[]};
 const decideGood={summary:'synthetic',known_context:['synthetic known context'],goals_affected:[],constraints:[],options:[],assumptions:[],unknowns:[],tradeoffs:[],risks_dependencies:[],what_would_change:[],clarifying_questions:[],evidence_refs:[]};
 assert.equal(validateReasoningResult('decision',normalizeReasoningResult(JSON.stringify(decideGood))).summary,'synthetic');
