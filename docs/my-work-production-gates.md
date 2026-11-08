@@ -106,3 +106,9 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - Added executable Node tests at `scripts/test-work-origin.mjs`: 3 test groups pass, covering cross-origin mutations, same-origin unauthenticated requests, and unauthenticated GET.
 - Build and existing API regression suite passed. This is an origin/CSRF defense-in-depth test, **not** an authenticated two-account IDOR or cross-device test.
 - Outstanding release gates remain native business-isolated model reasoning, independent worker credentials/integration authorization, audited action execution, authenticated tenant-negative testing, mobile/accessibility and My Life regression. Production unchanged.
+
+## Business ASK evidence retrieval
+- TODAY now includes a company-specific ASK evidence search. It operates only on the selected workspace's fully loaded records, scores title/type/details keyword matches, and returns cited record IDs, status and due dates.
+- It deliberately labels its output **keyword retrieval, not native generative AI reasoning**; a zero-match result is not represented as a negative business conclusion. It clears its question and answer on business switch or logout.
+- TypeScript/Vite production build, three CSRF/origin regression groups, and the 12-function API regression suite passed after implementation.
+- Native model inference still requires a verified separate business memory/conversation contract and model credentials. No personal memory was passed into the business search.
