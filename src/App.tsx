@@ -105,8 +105,6 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     const area=businessDepartments[department],focus=area.dimensions[dimension];
     return 'What is the current situation with '+focus.toLowerCase()+' in '+area.name.toLowerCase()+', what matters most, and what would you like to improve?';
   };
-  const savedDimensions=new Set((liveMode?remoteItems.filter(x=>x.kind==='note').map(x=>x.title):notes.map(x=>x.title)).map(x=>x.match(/^Business Map \| ([^|]+) \| ([^|]+) \|/)?.slice(1).join('|')).filter(Boolean));
-  const completedDimensions=businessDepartments.reduce((count,d)=>count+d.dimensions.filter(x=>savedDimensions.has(d.name+'|'+x)).length,0);
   const segmentPath=(inner:number,outer:number,start:number,end:number)=>{
     const point=(radius:number,deg:number)=>{const a=(deg-90)*Math.PI/180;return [260+radius*Math.cos(a),260+radius*Math.sin(a)]};
     const [x1,y1]=point(outer,start+1),[x2,y2]=point(outer,end-1),[x3,y3]=point(inner,end-1),[x4,y4]=point(inner,start+1);
@@ -137,6 +135,9 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [showSample,setShowSample]=useState(false);
   const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
   const liveMode=authenticated&&!!activeSpace&&remoteStatus==='ready';
+  const savedDimensions=new Set((liveMode?remoteItems.filter(x=>x.kind==='note').map(x=>x.title):notes.map(x=>x.title)).map(x=>x.match(/^Business Map \| ([^|]+) \| ([^|]+) \|/)?.slice(1).join('|')).filter(Boolean));
+  const completedDimensions=businessDepartments.reduce((count,d)=>count+d.dimensions.filter(x=>savedDimensions.has(d.name+'|'+x)).length,0);
+
   const locked=authenticated&&!liveMode;
   const overdue=liveMode?remoteItems.filter(x=>x.status==='open'&&x.due_at&&x.due_at<new Date().toISOString().slice(0,10)):[];
   const upcoming=liveMode?remoteItems.filter(x=>x.status==='open'&&x.due_at&&x.due_at>=new Date().toISOString().slice(0,10)).sort((a,b)=>(a.due_at||'').localeCompare(b.due_at||'')):[];
