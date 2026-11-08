@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import handler from '../api/ixo/work-reason.js';
+import {handleBusinessReason as handler} from '../lib/work-reason.js';
 const ws='00000000-0000-4000-8000-000000000001';
 function run({method='POST',origin='https://myixo.example',host='myixo.example',body={workspace_id:ws,question:'What is overdue?'},contentType='application/json'}={}){
  const req={method,headers:{origin,host,'content-type':contentType},body};
