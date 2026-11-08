@@ -146,3 +146,22 @@
 .nativeAreaGrid span{font-size:12px;opacity:.7;margin-top:4px}
 .personalizationProof{border:1px solid var(--border);border-radius:14px;padding:20px;margin:20px 0}
 .personalizationProof p{line-height:1.6;overflow-wrap:anywhere}
+
+
+/* MY iXo dual-world foundation: work UI is intentionally separate from native personal context. */
+.worldTabs{display:flex;gap:8px;padding:6px;margin:16px 0 26px;border:1px solid var(--border);border-radius:16px;background:var(--raised)}
+.worldTabs button{flex:1;border:0;border-radius:11px;padding:14px 18px;background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+.worldTabs button.active{background:var(--gold);color:#17130c}
+.worldTabs button:focus-visible,.workFocus input:focus-visible,.workSlider input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.workHome{max-width:1080px;margin:0 auto 48px}.workHome>h1{font-family:Georgia,serif;font-size:clamp(32px,5vw,58px);margin:12px 0}
+.workIntro{max-width:790px;line-height:1.7;margin-bottom:30px}
+.workCard{border:1px solid var(--border);border-radius:22px;background:var(--raised);padding:clamp(20px,4vw,36px);margin:20px 0}
+.workCard h2{font-family:Georgia,serif;font-size:clamp(24px,3vw,34px);font-weight:400;margin:12px 0}
+.workMuted{opacity:.75;font-size:13px;line-height:1.65}
+.workInsights{display:grid;gap:14px;margin:24px 0}.workInsights article{border:1px solid var(--border);border-radius:14px;padding:18px}.workInsights article strong{color:var(--gold)}.workInsights article p{line-height:1.6;margin:10px 0}.workInsights article small{opacity:.65}
+.workFocus{border:0;padding:0;margin:24px 0 12px}.workFocus legend{font-weight:700;margin-bottom:12px}.workFocus label{display:flex;gap:12px;align-items:center;margin:12px 0;cursor:pointer}.workFocus input{accent-color:var(--gold)}
+.workSelection{font-size:12px;line-height:1.6;opacity:.8;border-top:1px solid var(--border);padding-top:14px}
+.workSlider{display:block;margin:20px 0}.workSlider span{display:flex;justify-content:space-between;gap:15px;font-size:13px}.workSlider strong{color:var(--gold)}.workSlider input{width:100%;margin:12px 0 0;accent-color:var(--gold)}
+.workResults{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:22px 0;border-top:1px solid var(--border)}.workResults span,.workTotal span{display:block;font-size:12px;opacity:.75}.workResults strong,.workTotal strong{display:block;font-family:Georgia,serif;font-size:30px;font-weight:400;margin-top:8px}.workTotal{padding:18px;border:1px solid var(--border);border-radius:14px}.workTotal strong{color:var(--gold)}
+.workModules{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin:20px 0}.workModules span{padding:16px;border:1px solid var(--border);border-radius:12px;font-size:13px}
+@media(max-width:600px){.workResults{grid-template-columns:1fr}.worldTabs button{padding:12px}}
