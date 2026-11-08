@@ -31,7 +31,10 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [remoteSpaces,setRemoteSpaces]=useState<WorkSpace[]>([]);
   const [activeSpace,setActiveSpace]=useState('');
   const activeSpaceRef=useRef('');
+  const businessAiRequestRef=useRef(0);
   activeSpaceRef.current=activeSpace;
+  // Invalidate any in-flight answer when the user changes companies.
+  useEffect(()=>{businessAiRequestRef.current+=1;setRemoteBusy(false)},[activeSpace]);
   const [remoteItems,setRemoteItems]=useState<WorkRecord[]>([]);
   const [remoteStatus,setRemoteStatus]=useState<'loading'|'ready'|'signed-out'|'error'>('loading');
   const [remoteError,setRemoteError]=useState('');
@@ -246,16 +249,17 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const askBusinessModel=async()=>{
     if(!liveMode||!recordsComplete||remoteLoadingItems||businessQuestion.trim().length<4)return;
     const workspace=activeSpace;
+    const requestId=++businessAiRequestRef.current;
     setRemoteBusy(true);setRemoteError('');setBusinessAnswer('');
     try{
       const r=await fetch('/api/ixo/session?business_ai=1',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({workspace_id:workspace,question:businessQuestion.trim()}),cache:'no-store'});
       const d=await r.json().catch(()=>({}));
       if(!r.ok)throw Error(d.error||'Business model unavailable');
-      if(activeSpaceRef.current!==workspace)return;
+      if(activeSpaceRef.current!==workspace||businessAiRequestRef.current!==requestId)return;
       if(d.company_id!==workspace||typeof d.answer!=='string'||!Array.isArray(d.evidence_ids))throw Error('Invalid company-scoped AI response');
       setBusinessAnswer(d.answer+'\\n\\nEvidence record IDs: '+(d.evidence_ids.join(', ')||'none')+'\\nExternal actions executed: none');
-    }catch(e:any){if(activeSpaceRef.current===workspace)setRemoteError(e.message)}
-    finally{setRemoteBusy(false)}
+    }catch(e:any){if(activeSpaceRef.current===workspace&&businessAiRequestRef.current===requestId)setRemoteError(e.message)}
+    finally{if(businessAiRequestRef.current===requestId)setRemoteBusy(false)}
   };
   const askBusinessRecords=()=>{
     if(!liveMode||!recordsComplete||remoteLoadingItems){setRemoteError('Finish loading this business before searching its evidence.');return}
