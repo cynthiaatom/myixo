@@ -112,3 +112,10 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - It deliberately labels its output **keyword retrieval, not native generative AI reasoning**; a zero-match result is not represented as a negative business conclusion. It clears its question and answer on business switch or logout.
 - TypeScript/Vite production build, three CSRF/origin regression groups, and the 12-function API regression suite passed after implementation.
 - Native model inference still requires a verified separate business memory/conversation contract and model credentials. No personal memory was passed into the business search.
+
+## Session consistency and tenant-safety hardening
+- Replaced the uncancellable workspace-list fetch with an effect-local liveness guard so a response from an expired sign-in state cannot repopulate workspaces after logout or a new auth state.
+- Logout and workspace changes now clear business ASK results, pending specialist proposal drafts, decision reviews and specialist briefs; incomplete loads remain non-authoritative.
+- Paginated item loading rejects malformed item arrays, any record whose `workspace_id` does not equal the requested company, and non-progressing cursors. Exceeding the 25-page analysis limit now fails closed rather than displaying an incomplete dataset as if complete.
+- Verified TypeScript/Vite build, three origin security test groups and 12-function API regression suite passed. These checks are **not** substitutes for authenticated two-identity browser tests.
+- Remaining release gates: independent native AI model and company-specific memory contract, scoped external worker credentials and integrations, action audit events, multi-identity end-to-end tests, mobile/accessibility QA and production release approval.
