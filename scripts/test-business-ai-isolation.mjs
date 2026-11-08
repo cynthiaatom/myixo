@@ -19,7 +19,7 @@ async function scenario({owner='A',target=A,leak=false,modelAnswer,duplicate=fal
  globalThis.fetch=async(url,opts)=>{
   const u=String(url);calls.push({url:u,auth:opts.headers.authorization,body:opts.body});
   if(u.includes('resource=workspaces'))return reply({items:[{id:owner==='A'?A:B,name:owner+' company'}]});
-  if(u.includes('resource=items'))return reply({items:[{id:R,workspace_id:leak?B:target,kind:'task',title:'Renew agreement',details:'Due soon',status:'open'},...(duplicate?[{id:R,workspace_id:target,kind:'task',title:'Duplicate',status:'open'}]:[])],has_more:false});
+  if(u.includes('resource=items'))return reply({items:[{id:R,workspace_id:leak?B:target,kind:'task',title:'Follow-up agreement',details:'Commitments due soon',status:'open'},...(duplicate?[{id:R,workspace_id:target,kind:'task',title:'Duplicate',status:'open'}]:[])],has_more:false});
   if(u.includes('chat/completions'))return reply({choices:[{message:{content:modelAnswer??'Review renewal ['+R+']'}}]});
   throw Error('Unexpected network request '+u);
  };
