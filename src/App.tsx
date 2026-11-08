@@ -23,10 +23,60 @@ type InitState='LOADING'|'READY'|'PARTIAL'|'AUTH_REQUIRED'|'ERROR';
 
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
+
+function MyWorkHome(){
+  const [revenue,setRevenue]=useState(2000000);
+  const [margin,setMargin]=useState(20);
+  const [lift,setLift]=useState(3);
+  const [hours,setHours]=useState(5);
+  const [hourValue,setHourValue]=useState(100);
+  const [focus,setFocus]=useState<'revenue'|'pricing'|'operations'>('revenue');
+  const currency=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
+  const contribution=revenue*lift/100*margin/100;
+  const timeValue=hours*hourValue*52;
+  const topics={revenue:'Recover overdue revenue opportunities',pricing:'Evaluate a pricing decision',operations:'Investigate duplicated reporting work'};
+  return <section className="workHome" aria-label="My Work">
+    <div className="eyebrow">MY WORK · EXECUTIVE INTELLIGENCE</div>
+    <h1>Clarity for your business.</h1>
+    <p className="workIntro">A dedicated space for decisions, growth and the work that matters. Business integrations and personalized recommendations are being developed separately from your private My Life context.</p>
+    <div className="workCard workBrief">
+      <div className="eyebrow">EXECUTIVE BRIEF · ILLUSTRATIVE EXAMPLES</div>
+      <h2>Good morning. Here's what matters.</h2>
+      <p className="workMuted">The following are hypothetical examples, not insights from your connected business systems.</p>
+      <div className="workInsights">
+        <article><strong>Revenue opportunity</strong><p>Three qualified opportunities are overdue for follow-up, representing $82,000 in potential contract value.</p><small>Hypothetical CRM scenario</small></article>
+        <article><strong>Decision waiting</strong><p>A proposed price increase could improve contribution margin, but the customer-retention assumption has not been validated.</p><small>Hypothetical decision scenario</small></article>
+        <article><strong>Operational improvement</strong><p>Two teams may be duplicating weekly reporting work. Potential saving: four hours per week, pending confirmation.</p><small>Hypothetical project scenario</small></article>
+      </div>
+      <fieldset className="workFocus"><legend>What would you like to investigate first?</legend>
+        {(Object.keys(topics) as Array<keyof typeof topics>).map(k=><label key={k}><input type="radio" name="work-focus" checked={focus===k} onChange={()=>setFocus(k)}/>{topics[k]}</label>)}
+      </fieldset>
+      <div className="workSelection">Selected: {topics[focus]}. Live investigation will become available when authorized business data and workflows are connected.</div>
+    </div>
+    <div className="workCard workCalculator">
+      <div className="eyebrow">BUSINESS IMPROVEMENT CALCULATOR</div>
+      <h2>What could better decisions be worth?</h2>
+      <p className="workMuted">Illustrative economics only — not a forecast, guaranteed return, or measured MY iXo result.</p>
+      {([
+        ['Annual revenue',revenue,setRevenue,250000,10000000,250000,currency(revenue)],
+        ['Incremental revenue contribution margin',margin,setMargin,5,60,5,margin+'%'],
+        ['Hypothetical revenue increase',lift,setLift,0,10,1,lift+'%'],
+        ['Executive hours recovered per week',hours,setHours,0,15,1,hours+' hours'],
+        ['Value of an executive hour',hourValue,setHourValue,25,300,25,currency(hourValue)]
+      ] as Array<[string,number,(n:number)=>void,number,number,number,string]>).map(([label,value,update,min,max,step,display])=><label className="workSlider" key={label}><span>{label}<strong>{display}</strong></span><input type="range" min={min} max={max} step={step} value={value} onChange={e=>update(Number(e.target.value))}/></label>)}
+      <div className="workResults"><div><span>Additional contribution / year</span><strong>{currency(contribution)}</strong></div><div><span>Recovered time value / year</span><strong>{currency(timeValue)}</strong></div></div>
+      <div className="workTotal"><span>Combined illustrative opportunity</span><strong>{currency(contribution+timeValue)}</strong></div>
+      <p className="workMuted">Before implementation costs. Time value assumes productive redeployment; do not double-count when time savings drive the revenue gain.</p>
+    </div>
+    <div className="workCard"><div className="eyebrow">COMING NEXT</div><h2>Your business intelligence workspace</h2><div className="workModules">{['My Business','Decisions','Opportunities','MY AI CMO / CRO','My AI Team','Business Memory'].map(x=><span key={x}>{x}</span>)}</div><p className="workMuted">Company-specific records, approvals and team access will remain isolated from personal memory and from other businesses.</p></div>
+  </section>;
+}
+
 export default function App(){
   const [model,setModel]=useState<PersonalMapModel>(demoPersonalMap);
   const [mapReady,setMapReady]=useState(false);
   const [stage,setStage]=useState<Stage>('hero');
+  const [world,setWorld]=useState<'life'|'work'>('life');
   const [demoQi,setDemoQi]=useState(0);
   const [answer,setAnswer]=useState('');
   const [selected,setSelected]=useState<string[]>([]);
@@ -464,6 +514,9 @@ export default function App(){
   const activeView:ProductView=stage==='memory'?'memory':stage==='today'?'today':stage==='mirror'?'mirror':stage==='decide'?'decide':stage==='ask'?'ask':stage==='timeline'?'timeline':'me';
 
   return <main><div className="veil"/><header><div className="logo"><span className="my">MY</span><span className="ixo">iXo</span></div><div className="demo">{user?'iXo CONNECTED':'EXECUTIVE DEMO'}</div></header><div className="wrap">
+    <nav className="worldTabs" aria-label="Choose your MY iXo workspace"><button className={world==='life'?'active':''} aria-current={world==='life'?'page':undefined} onClick={()=>setWorld('life')}>My Life</button><button className={world==='work'?'active':''} aria-current={world==='work'?'page':undefined} onClick={()=>setWorld('work')}>My Work</button></nav>
+    {world==='work'&&<MyWorkHome/>}
+    {world==='life'&&<>
     {user&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
     {memoryLoading&&<div className="contextLoading">Loading your iXo context...</div>}
     {stage==='hero'&&initState==='LOADING'&&<section className="hero loadingHero"><div><div className="eyebrow">PERSONAL INTELLIGENCE, MADE VISIBLE</div><h1>BUILD YOUR <em>iXo</em></h1><p className="lead">Syncing your real iXo context before showing your Personal Map.</p><div className="syncPill"><span/>Checking session {String.fromCodePoint(0x00B7)} loading native Personal Map</div></div><div className="mapLoading"><div className="mapLoadingCore">MY<br/><b>iXo</b></div><p>SYNCING PERSONAL MAP</p></div></section>}
@@ -485,6 +538,7 @@ export default function App(){
 
     {(['hero','demo','done'].includes(stage))&&<section className="how"><div className="eyebrow">THE INTELLIGENCE LOOP</div><h2>One conversation. A clearer picture.</h2><div className="steps">{[['01','Adaptive questioning','iXo chooses the next high-information question from your current context.'],['02','Context & memory',"Your answer is saved into iXo's revisioned personal context."],['03','Personal Map update','The app waits for iXo to finish indexing before refreshing the map.'],['04','Living Personal Map','The map evolves as you do. It is never a life score.']].map(x=><div key={x[0]}><span>{x[0]}</span><h3>{x[1]}</h3><p>{x[2]}</p></div>)}</div></section>}
     {verifyOpen&&<div className="verifyOverlay"><section className="panel verifyPanel"><div className="eyebrow">CONTACT VERIFICATION</div><h2>Confirm your contact email</h2><p>This email is used only to satisfy iXo's contact verification requirement. It does not change your iXo login.</p>{verifyStep==='email'?<form className="verifyForm" onSubmit={e=>{e.preventDefault();if(!verifyBusy&&contactEmailValid)void sendVerification()}}><label>Contact email<input type="email" placeholder="name@example.com" value={contactEmail} onChange={e=>{setContactEmail(e.target.value);if(verifyError)setVerifyError('')}} autoComplete="email"/></label></form>:<label className="verifyField">Enter the 6-digit code<input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={verifyCode} onChange={e=>{const next=e.target.value.trim();if(/^[0-9]*$/.test(next)&&next.length<=6){setVerifyCode(next);if(verifyError)setVerifyError('')}}} onKeyDown={e=>{if(e.key==='Enter'&&!verifyBusy&&verificationCodeValid){e.preventDefault();void confirmVerification()}}} autoComplete="one-time-code"/></label>}{verifyError&&<div className="connectError">{verifyError}</div>}<div className="actions">{verifyStep==='email'?<button className="primary" disabled={verifyBusy||!contactEmailValid} onClick={sendVerification}>{verifyBusy?'Sending...':'Send verification code'}</button>:<button className="primary" disabled={verifyBusy||!verificationCodeValid} onClick={confirmVerification}>{verifyBusy?'Confirming...':'Confirm code'}</button>}<button disabled={verifyBusy} onClick={()=>{setVerifyOpen(false);setVerifyError('');setVerifyCode('')}}>Not now</button></div></section></div>}
+    </>}
     <footer>{user?'MY iXo · Personal Intelligence Operating System':'MY iXo · Executive prototype · Synthetic demo data only'}</footer>
   </div></main>
 }
