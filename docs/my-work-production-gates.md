@@ -87,3 +87,9 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - The native iXo personal reasoning endpoint uses personal profile memory and persistent chats. Passing confidential company context into it without a distinct business-scoped conversation/memory contract could cross-contaminate My Life and My Work. Native business reasoning is intentionally gated pending a separate verified isolation path.
 - Independent MY iXo workers do not inherit ChatGPT's connected account credentials. CRM, finance, ClickUp, Google Drive, email and calendar write integrations require their own app-scoped credentials, least-privilege scopes, user consent and audit logs; no unauthorized connectors or credentials were created.
 - Multi-user role grants, delegated specialists, and automatic external writes remain gated until an audited authorization model and real cross-tenant acceptance tests pass. The existing private single-owner model must not be silently upgraded to team access.
+
+## Further continuous pass — data completeness and CEO snapshot
+- On every company change or logout, the frontend immediately invalidates prior record completeness and clears specialist/decision drafts. Failed paginated loads also remain incomplete, preventing misleading evidence-based briefs and CEO priority calculations.
+- TODAY now offers a **Generate evidence-backed executive snapshot** action. It creates a read-only, company-scoped record summary with IDs for overdue, unscheduled and stale records, and explicitly distinguishes deterministic checks from native model inference. The generated snapshot appears in the specialist review area; no autonomous action is triggered.
+- TypeScript/Vite build and existing 12-function API regression suite passed.
+- Native reasoning, application-worker connectors, multi-account browser security, mobile and accessibility checks remain not verified. No production release authorization is implied.
