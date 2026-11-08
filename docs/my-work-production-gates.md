@@ -78,3 +78,12 @@ Implemented and validated on the development branch:
 - Anonymous GET/POST/PATCH/DELETE to the Edge Work endpoint each returned 401.
 - TypeScript/Vite build and API regression suite passed (12 API functions).
 Remaining production blockers: authenticated two-account and two-device tests; owner/workspace IDOR tests using real test identities; native company-scoped model reasoning; autonomous specialist execution and approvals; app-worker integration credentials; enterprise roles; mobile/accessibility and My Life browser regressions. **Do not promote this branch yet.**
+
+## Continued execution: isolated decision review and safeguards
+- Implemented **company-scoped decision evidence review**: parses saved options and evidence, finds title-related records in the selected company, cites record IDs, flags missing evidence/review dates and keeps final decisions with the human. This is deterministic decision support, not a claim of native model reasoning.
+- Switching companies now clears both the specialist draft and decision review so sensitive previous-company material is not left visible in those panels.
+- Production build and 12-function API regression suite passed after these changes.
+- Authenticated two-account negative testing remains blocked by the absence of two authorized native iXo test identities in this tool session. **Do not fabricate passing cross-tenant results.**
+- The native iXo personal reasoning endpoint uses personal profile memory and persistent chats. Passing confidential company context into it without a distinct business-scoped conversation/memory contract could cross-contaminate My Life and My Work. Native business reasoning is intentionally gated pending a separate verified isolation path.
+- Independent MY iXo workers do not inherit ChatGPT's connected account credentials. CRM, finance, ClickUp, Google Drive, email and calendar write integrations require their own app-scoped credentials, least-privilege scopes, user consent and audit logs; no unauthorized connectors or credentials were created.
+- Multi-user role grants, delegated specialists, and automatic external writes remain gated until an audited authorization model and real cross-tenant acceptance tests pass. The existing private single-owner model must not be silently upgraded to team access.
