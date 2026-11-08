@@ -31,6 +31,17 @@ function MyWorkHome(){
   const [hours,setHours]=useState(5);
   const [hourValue,setHourValue]=useState(100);
   const [focus,setFocus]=useState<'revenue'|'pricing'|'operations'>('revenue');
+  const [company,setCompany]=useState('');
+  const [objective,setObjective]=useState('');
+  const [opportunity,setOpportunity]=useState('');
+  const [amount,setAmount]=useState('');
+  const [opportunities,setOpportunities]=useState<Array<{id:number;name:string;value:number;done:boolean}>>([]);
+  const [decision,setDecision]=useState('');
+  const [decisions,setDecisions]=useState<Array<{id:number;question:string;resolved:boolean}>>([]);
+  const [workspace,setWorkspace]=useState<'overview'|'opportunities'|'decisions'|'company'>('overview');
+  const [notice,setNotice]=useState('');
+  const addOpportunity=()=>{const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
+  const addDecision=()=>{if(!decision.trim())return;setDecisions(items=>[...items,{id:Date.now(),question:decision.trim(),resolved:false}]);setDecision('')};
   const currency=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const contribution=revenue*lift/100*margin/100;
   const timeValue=hours*hourValue*52;
@@ -39,7 +50,12 @@ function MyWorkHome(){
     <div className="eyebrow">MY WORK · EXECUTIVE INTELLIGENCE</div>
     <h1>Clarity for your business.</h1>
     <p className="workIntro">A dedicated space for decisions, growth and the work that matters. Business integrations and personalized recommendations are being developed separately from your private My Life context.</p>
-    <div className="workCard workBrief">
+    <div className="workNavigation" aria-label="My Work sections">{([['overview','Overview'],['company','My Business'],['opportunities','Opportunities'],['decisions','Decisions']] as const).map(([id,label])=><button key={id} className={workspace===id?'active':''} onClick={()=>setWorkspace(id)}>{label}</button>)}</div>
+    <div className="workSessionNote">WORKSPACE STATUS · Local planning session. Your entries are not sent to iXo, stored in a company database, or available on another device. Keep confidential business information out of this preview.</div>
+    {workspace==='company'&&<div className="workCard"><div className="eyebrow">MY BUSINESS · WORKSPACE PROFILE</div><h2>Start with what matters.</h2><p className="workMuted">Set the context for this planning session. This is not yet connected to a company knowledge graph.</p><label className="workField">Company or project name<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company"/></label><label className="workField">Primary business objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} placeholder="What are you trying to improve?"/></label><div className="workSelection">{company||'Unnamed business'} · {objective||'Add an objective to focus your work.'}</div></div>}
+    {workspace==='opportunities'&&<div className="workCard"><div className="eyebrow">REVENUE OPPORTUNITIES</div><h2>Keep valuable follow-ups visible.</h2><p className="workMuted">Create and close opportunities in this temporary session. Values are potential contract value, not booked revenue.</p><div className="workEntry"><input aria-label="Opportunity name" value={opportunity} onChange={e=>setOpportunity(e.target.value)} placeholder="Opportunity or follow-up"/><input aria-label="Potential value" type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Potential $"/><button className="primary" disabled={!opportunity.trim()||!amount||Number(amount)<0} onClick={addOpportunity}>Add opportunity</button></div><div className="workMetric">{currency(opportunities.filter(x=>!x.done).reduce((sum,x)=>sum+x.value,0))}<small>Open potential contract value · {opportunities.filter(x=>!x.done).length} opportunities</small></div><div className="workItems">{opportunities.map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>setOpportunities(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}>{item.name}</span><strong>{currency(item.value)}</strong><button aria-label={'Remove '+item.name} onClick={()=>setOpportunities(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{opportunities.length===0&&<p className="workMuted">No opportunities added yet.</p>}</div>}
+    {workspace==='decisions'&&<div className="workCard"><div className="eyebrow">BUSINESS DECISION REGISTER</div><h2>Decisions worth following through.</h2><p className="workMuted">Capture decisions and mark them resolved. Native iXo reasoning and durable decision continuity will be connected after scope-safe authentication is verified.</p><div className="workEntry"><input aria-label="Business decision" value={decision} onChange={e=>setDecision(e.target.value)} placeholder="What do you need to decide?"/><button className="primary" disabled={!decision.trim()} onClick={addDecision}>Add decision</button></div><div className="workItems">{decisions.map(item=><label key={item.id}><input type="checkbox" checked={item.resolved} onChange={e=>setDecisions(items=>items.map(x=>x.id===item.id?{...x,resolved:e.target.checked}:x))}/><span className={item.resolved?'completed':''}>{item.question}</span><button aria-label={'Remove '+item.question} onClick={()=>setDecisions(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{decisions.length===0&&<p className="workMuted">No decisions added yet.</p>}</div>}
+    {workspace==='overview'&&<><div className="workCard workBrief">
       <div className="eyebrow">EXECUTIVE BRIEF · ILLUSTRATIVE EXAMPLES</div>
       <h2>Good morning. Here's what matters.</h2>
       <p className="workMuted">The following are hypothetical examples, not insights from your connected business systems.</p>
@@ -51,7 +67,7 @@ function MyWorkHome(){
       <fieldset className="workFocus"><legend>What would you like to investigate first?</legend>
         {(Object.keys(topics) as Array<keyof typeof topics>).map(k=><label key={k}><input type="radio" name="work-focus" checked={focus===k} onChange={()=>setFocus(k)}/>{topics[k]}</label>)}
       </fieldset>
-      <div className="workSelection">Selected: {topics[focus]}. Live investigation will become available when authorized business data and workflows are connected.</div>
+      <div className="workSelection">Selected: {topics[focus]}. The examples above are not connected to your company.</div><button className="workAction" onClick={()=>{if(focus==='revenue'){setWorkspace('opportunities');setOpportunity('Follow up with qualified prospects')}else if(focus==='pricing'){setWorkspace('decisions');setDecision('Should we adjust our pricing?')}else{setWorkspace('decisions');setDecision('How can we reduce duplicated reporting?')}setNotice('')}}>Create a planning item for this topic →</button>
     </div>
     <div className="workCard workCalculator">
       <div className="eyebrow">BUSINESS IMPROVEMENT CALCULATOR</div>
@@ -68,7 +84,7 @@ function MyWorkHome(){
       <div className="workTotal"><span>Combined illustrative opportunity</span><strong>{currency(contribution+timeValue)}</strong></div>
       <p className="workMuted">Before implementation costs. Time value assumes productive redeployment; do not double-count when time savings drive the revenue gain.</p>
     </div>
-    <div className="workCard"><div className="eyebrow">COMING NEXT</div><h2>Your business intelligence workspace</h2><div className="workModules">{['My Business','Decisions','Opportunities','MY AI CMO / CRO','My AI Team','Business Memory'].map(x=><span key={x}>{x}</span>)}</div><p className="workMuted">Company-specific records, approvals and team access will remain isolated from personal memory and from other businesses.</p></div>
+    <div className="workCard"><div className="eyebrow">WORKSPACE TOOLS</div><h2>Your business intelligence workspace</h2><div className="workModules">{['My Business','Decisions','Opportunities','MY AI CMO / CRO','My AI Team','Business Memory'].map(x=><span key={x}>{x}</span>)}</div><p className="workMuted">Company-specific records, approvals and team access will remain isolated from personal memory and from other businesses.</p></div>
   </section>;
 }
 
