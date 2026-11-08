@@ -206,3 +206,18 @@
 .workDataMenuItems{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:185px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:7px;box-shadow:0 12px 28px #0009}
 .workDataMenuItems button{display:block;width:100%;text-align:left;margin:3px 0}
 @media(max-width:950px){.workHeaderRow{flex-wrap:wrap}.workHeaderActions{padding-top:0}.workNavigationSingle{overflow-x:auto;scrollbar-width:thin}.workNavigationSingle>button{flex:0 0 auto}.workDataMenu{position:sticky;right:0;background:var(--bg)}}
+
+/* Welcome parity: My Work uses the same proportions and card rhythm as My Life. */
+.workWelcomeMatched{width:100%;max-width:none;margin:0}
+.workWelcomeMatched>h1{font-size:clamp(46px,6.5vw,86px);line-height:1.04;letter-spacing:-.035em;margin:18px 0 4px}
+.workWelcomeMatched>.workWelcomeSubtitle{margin:0 0 20px;color:var(--muted);font-size:15px}
+.workWelcomeMatched .workWelcomeLayout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(390px,.85fr);gap:18px;align-items:stretch}
+.workWelcomeMatched .workWelcomePanel{margin:0;max-width:none;min-width:0;border-radius:24px;background:linear-gradient(145deg,#1c1a16,#12110f)}
+.workWelcomeMatched .workWelcomeIntro{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:32px;min-height:340px}
+.workWelcomeMatched .workWelcomeIntro h2{font-size:clamp(28px,2.9vw,38px);line-height:1.12;margin:32px 0 14px;max-width:610px}
+.workWelcomeMatched .workWelcomeIntro>p{font-size:15px;line-height:1.65;margin:0 0 12px}
+.workWelcomeMatched .workWelcomeIntro>.primary{width:auto;max-width:100%;align-self:flex-start;margin:18px 0 12px;padding:15px 23px}
+.workWelcomeMatched .workWelcomeIntro>.workMuted{font-size:12px;line-height:1.5;margin:0}
+.workWelcomeMatched .workWelcomeChart{display:grid;place-items:center;padding:18px 22px 22px;overflow:hidden;min-height:340px}
+.workWelcomeMatched .workWelcomeChart .businessWheel{max-width:360px}
+@media(max-width:850px){.workWelcomeMatched .workWelcomeLayout{grid-template-columns:minmax(0,1fr)}.workWelcomeMatched .workWelcomeChart{min-height:320px}.workWelcomeMatched>h1{font-size:clamp(42px,8vw,70px)}}
