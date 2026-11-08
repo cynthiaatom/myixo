@@ -221,3 +221,21 @@
 .workWelcomeMatched .workWelcomeChart{display:grid;place-items:center;padding:18px 22px 22px;overflow:hidden;min-height:340px}
 .workWelcomeMatched .workWelcomeChart .businessWheel{max-width:360px}
 @media(max-width:850px){.workWelcomeMatched .workWelcomeLayout{grid-template-columns:minmax(0,1fr)}.workWelcomeMatched .workWelcomeChart{min-height:320px}.workWelcomeMatched>h1{font-size:clamp(42px,8vw,70px)}}
+
+/* Keep My Work's opening screen structurally aligned with signed-in My Life. */
+.workHome:has(.workWelcomeMatched){max-width:none;margin:0 auto 48px}
+.workWelcomeMatched{padding:0 0 76px}
+.workWelcomeNav{min-height:55px;display:flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:17px;padding:8px 10px;background:#171612}
+.workWelcomeNav button{appearance:none;border:0;border-radius:12px;background:transparent;color:#938d80;font-size:10px;font-weight:700;letter-spacing:.1em;padding:11px 12px;white-space:nowrap;cursor:pointer}
+.workWelcomeNav button:hover,.workWelcomeNav button:focus-visible{color:var(--text);background:#25231f}
+.workWelcomeNav button.active{background:#24221f;color:var(--text)}
+.workWelcomeNav .workWelcomeNavAction{margin-left:auto;border:1px solid #8e6d25;color:#e3bd62;padding:12px 16px}
+.workWelcomeHero{padding-top:68px;margin-bottom:34px}
+.workWelcomeMatched .workWelcomeHero h1{font-family:Georgia,serif;font-weight:400;font-size:clamp(46px,6.5vw,86px);line-height:1.04;letter-spacing:-.035em;margin:16px 0 4px;color:#f3ecdc}
+.workWelcomeMatched .workWelcomeHero h1 span{color:#e4c476}
+.workWelcomeMatched .workWelcomeHero .workWelcomeSubtitle{margin:0;color:var(--muted);font-size:15px;line-height:1.65}
+.workWelcomeMatched .workWelcomeLayout{grid-template-columns:minmax(0,1.15fr) minmax(390px,.85fr);gap:18px}
+.workWelcomeMatched .workWelcomeIntro,.workWelcomeMatched .workWelcomeChart{min-height:340px}
+.workWelcomeMatched .workWelcomeChart{overflow:visible}
+.workWelcomeMatched .workWelcomeChart .businessWheel{max-width:330px}
+@media(max-width:850px){.workWelcomeNav{overflow-x:auto;scrollbar-width:thin}.workWelcomeNav .workWelcomeNavAction{margin-left:0}.workWelcomeHero{padding-top:42px}.workWelcomeMatched .workWelcomeLayout{grid-template-columns:minmax(0,1fr)}.workWelcomeMatched .workWelcomeChart{overflow:hidden}.workWelcomeMatched .workWelcomeHero h1{font-size:clamp(42px,8vw,70px)}}
