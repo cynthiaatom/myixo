@@ -63,6 +63,9 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
 
   const [businessMemoryBusy,setBusinessMemoryBusy]=useState(false);
   const [businessMemoryError,setBusinessMemoryError]=useState('');
+  const [nativeWorkFacts,setNativeWorkFacts]=useState<Array<{id:string;value:string}>>([]);
+  const [nativeWorkLoading,setNativeWorkLoading]=useState(false);
+  const [nativeWorkError,setNativeWorkError]=useState('');
   const previewExistingMemory=async()=>{
     const previewWorkspace=activeSpace;
     setBusinessMemoryBusy(true);setBusinessMemoryError('');setBusinessMemoryPreview([]);setBusinessMemorySelected([]);setBusinessMemoryImportMessage('');
@@ -86,6 +89,35 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     finally{setBusinessMemoryBusy(false)}
   };
 
+  useEffect(()=>{
+    if(!authenticated||workspace!=='company'){setNativeWorkFacts([]);return}
+    let cancelled=false;
+    const load=async()=>{
+      setNativeWorkLoading(true);setNativeWorkError('');
+      try{
+        const facts:Array<{id:string;value:string}>=[];
+        let cursor='',complete=false;
+        for(let page=0;page<20;page++){
+          const r=await fetch('/api/ixo/memory?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
+          const data=await r.json().catch(()=>({}));
+          if(!r.ok||!Array.isArray(data.items))throw Error(data.error||'Unable to load native iXo facts');
+          for(const item of data.items){
+            const category=String(item.category||'').toLowerCase();
+            const scope=String(item.scope||'').toLowerCase();
+            if((category==='work'||scope==='work')&&typeof item.value==='string'&&typeof item.id==='string')facts.push({id:item.id,value:item.value});
+          }
+          if(!data.next_cursor){complete=true;break}
+          if(typeof data.next_cursor!=='string'||cursor===data.next_cursor)throw Error('Invalid iXo fact pagination');
+          cursor=data.next_cursor;
+        }
+        if(!complete)throw Error('iXo has more facts than the current retrieval limit; showing a partial Work inventory is unsafe');
+        if(!cancelled)setNativeWorkFacts(facts);
+      }catch(e:any){if(!cancelled)setNativeWorkError(e.message||'iXo facts could not be loaded')}
+      finally{if(!cancelled)setNativeWorkLoading(false)}
+    };
+    void load();
+    return ()=>{cancelled=true};
+  },[authenticated,workspace]);
   const syncBusinessMemoryFromIxo=async()=>{
     if(!liveMode||businessMemoryImportBusy||businessMemoryBusy||remoteLoadingItems||!recordsComplete)return;
     const target=activeSpace;
@@ -532,6 +564,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     {workspace==='data'&&<section className="workCard" aria-label="Business data management"><div className="eyebrow">DATA MANAGEMENT</div><h2>Export and demo data</h2><p className="workMuted">Manage a copy of your business records or a fictional demonstration session. Importing demo data is available only while signed out; it never overwrites authenticated business records.</p><div className="workToolbar"><button disabled={authenticated} onClick={loadSample}>Load executive demo</button><button onClick={()=>void exportWorkspace()} disabled={exportBusy||remoteLoadingItems||(authenticated&&!liveMode)}>{exportBusy?'Preparing export…':authenticated?'Export this business':'Export demo session'}</button><label className="workImport">Import demo session<input disabled={authenticated} type="file" accept="application/json,.json" onChange={e=>{void importWorkspace(e.target.files?.[0]);e.target.value=''}}/></label></div></section>}
     {workspace==='overview'&&liveMode&&<div className="workCard"><div className="eyebrow">CEO COMMAND CENTER · SOURCE-BACKED ATTENTION</div><h2>What needs your attention?</h2><p className="workMuted">Prioritized by overdue dates, then missing review dates. These are transparent rules from your saved company records, not generated AI judgments.</p>{executivePriorities.map(x=><div className="workSelection" key={x.id}><strong>{x.title}</strong><p>{x.reason}</p><small>{x.source}</small><button onClick={()=>setWorkspace(x.section as 'opportunities'|'decisions'|'team')}>Review →</button></div>)}{executivePriorities.length===0&&<p className="workMuted">No overdue or undated decision/opportunity records detected. This does not imply the business has no risks.</p>}</div>}
     {workspace==='overview'&&<div className="workStats"><div><small>Open pipeline</small><strong>{currency(openPipeline)}</strong><span>{openOpportunities.length} opportunities</span></div><div><small>Decisions pending</small><strong>{openDecisions.length}</strong><span>Awaiting review</span></div><div><small>Team assignments</small><strong>{pendingTasks.length}</strong><span>Active planning tasks</span></div></div>}
+    {workspace==='company'&&authenticated&&<section className="workCard"><div className="eyebrow">LIVE IXO WORK KNOWLEDGE</div><h2>Work facts from your regular iXo</h2><p className="workMuted">These facts are read directly from iXo when you open My Business. They appear even before a company workspace is created. Company-specific storage remains separate.</p>{nativeWorkLoading&&<p role="status">Loading Work facts from iXo…</p>}{nativeWorkError&&<p role="alert">{nativeWorkError}</p>}{!nativeWorkLoading&&!nativeWorkError&&<p role="status">{nativeWorkFacts.length} Work facts available from the memory API.</p>}{nativeWorkFacts.slice(0,100).map(x=><div className="workSelection" key={x.id}>{x.value}</div>)}{nativeWorkFacts.length>100&&<p className="workMuted">Showing the first 100 Work facts.</p>}{!nativeWorkLoading&&!nativeWorkError&&nativeWorkFacts.length===0&&<p className="workMuted">No Work-category facts were returned by the memory endpoint. The Personal Map category count may use a separate native fact source.</p>}</section>}
     {workspace==='company'&&authenticated&&remoteSpaces.length>0&&<section className="workCard"><div className="eyebrow">BUSINESS KNOWLEDGE · IXO API ONLY</div><h2>Sync business knowledge from iXo</h2><p className="workMuted">All business information supplied by your regular iXo API is authorized for MY iXo. Whenever you open My Business, new facts explicitly scoped by iXo to the selected company sync automatically, without asking you to approve each fact. Unscoped or other-company facts stay out of this workspace. No other external business-data source is used.</p>{businessMemoryImportBusy&&<p role="status">Checking regular iXo for new business knowledge…</p>}{businessMemoryError&&<p role="alert">{businessMemoryError}</p>}{businessMemoryImportMessage&&<p role="status">{businessMemoryImportMessage}</p>}</section>}
     {workspace==='company'&&<div className="workCard"><div className="eyebrow">MY BUSINESS · WORKSPACE PROFILE</div><h2>Start with what matters.</h2><p className="workMuted">Set the context for this planning session. This is not yet connected to a company knowledge graph.</p><label className="workField">Company or project name<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company"/></label><label className="workField">Primary business objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} placeholder="What are you trying to improve?"/></label><div className="workSelection">{company||'Unnamed business'} · {objective||'Add an objective to focus your work.'}</div><button className="primary" disabled={remoteBusy||!company.trim()||!authenticated} onClick={()=>void saveSpace()}>Create private business workspace</button>{remoteSpaces.length>0&&<p className="workMuted">Saved businesses: {remoteSpaces.map(x=>x.name).join(' · ')}</p>}</div>}
     {workspace==='projects'&&<div className="workCard"><div className="eyebrow">PROJECTS · EXECUTION & ACCOUNTABILITY</div><h2>Connect work to outcomes.</h2><p className="workMuted">Track company-scoped initiatives and their intended results. These are MY iXo records, not yet synchronized with external project-management systems.</p><label className="workField">Project or initiative<input value={projectTitle} onChange={e=>setProjectTitle(e.target.value)} placeholder="Launch new customer onboarding"/></label><label className="workField">Expected outcome, owner and dependencies<textarea value={projectOutcome} onChange={e=>setProjectOutcome(e.target.value)} placeholder="What success looks like, who owns it, and what could block progress"/></label><label className="workField">Target date<input type="date" value={projectDue} onChange={e=>setProjectDue(e.target.value)}/></label><button className="primary" disabled={!liveMode||remoteBusy||!projectTitle.trim()} onClick={()=>{void (async()=>{if(await saveRemoteItem('project',projectTitle,0,'',projectDue||null,projectOutcome)){setProjectTitle('');setProjectOutcome('');setProjectDue('')}})()}}>Save project</button><div className="workItems">{remoteItems.filter(x=>x.kind==='project').map(x=><article className="workSelection" key={x.id}><strong>{x.title}</strong><p>{x.details||'No outcome documented yet'}</p><small>{x.due_at?'Target '+x.due_at+' · ':''}{x.status} · Source: saved project {x.id}</small><button disabled={remoteBusy} onClick={()=>void updateRemoteItem(x,x.status==='done'?'open':'done')}>{x.status==='done'?'Reopen':'Mark complete'}</button></article>)}</div></div>}
