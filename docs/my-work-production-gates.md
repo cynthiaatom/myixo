@@ -68,3 +68,13 @@ Updated 2026-11-08. **NOT PRODUCTION-APPROVED.** This document distinguishes imp
 - Cloud saves for opportunities, decisions, tasks, notes, projects, and meetings now retain form contents when the server rejects or fails the write; only successful saves clear the corresponding form. The Business Map already uses confirmed-write advancement.
 - Decision register now visibly displays stored alternatives and evidence/unknowns, including older plain-text details.
 - TypeScript/Vite build and API regression suite passed during this pass. Authenticated end-to-end cross-device and cross-company tests remain outstanding; production promotion remains gated.
+
+## Next continuous workflow pass (2026-11-08)
+Implemented and validated on the development branch:
+- Owner-scoped **complete business JSON export**: re-fetches every page through the authenticated Work API, rejects incomplete pagination and workspace changes, verifies every returned record belongs to the selected company, and exports that company only. Import into cloud storage remains disabled pending schema/version conflict handling. Downloaded files contain confidential business data and must be protected.
+- **Read-only specialist evidence briefs** for Marketing, Revenue, Operations, Research, Finance and Chief of Staff. Briefs select company-scoped saved records, include source IDs, missing context, and explicit approval boundaries. They are drafts for review, **not executed autonomous AI agents** and do not write to external systems.
+- **Proactive deterministic signals**: business dimension answers not updated in 90 days and incomplete Business Map coverage now appear in MIRROR; stale answers also enter the CEO attention queue. No scheduled background monitoring or model-generated advice is claimed.
+- Existing RLS and table privileges checked again: both private tables have RLS enabled; anon/authenticated roles lack direct read/write grants.
+- Anonymous GET/POST/PATCH/DELETE to the Edge Work endpoint each returned 401.
+- TypeScript/Vite build and API regression suite passed (12 API functions).
+Remaining production blockers: authenticated two-account and two-device tests; owner/workspace IDOR tests using real test identities; native company-scoped model reasoning; autonomous specialist execution and approvals; app-worker integration credentials; enterprise roles; mobile/accessibility and My Life browser regressions. **Do not promote this branch yet.**
