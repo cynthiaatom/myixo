@@ -93,3 +93,10 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - TODAY now offers a **Generate evidence-backed executive snapshot** action. It creates a read-only, company-scoped record summary with IDs for overdue, unscheduled and stale records, and explicitly distinguishes deterministic checks from native model inference. The generated snapshot appears in the specialist review area; no autonomous action is triggered.
 - TypeScript/Vite build and existing 12-function API regression suite passed.
 - Native reasoning, application-worker connectors, multi-account browser security, mobile and accessibility checks remain not verified. No production release authorization is implied.
+
+## Approval-gated specialist workflow pass
+- Added durable, per-company specialist action proposals using the existing owner-scoped Work API and task records with paused status. Proposals require a rationale and are explicitly marked `external_execution:false`.
+- The owner can approve a proposal for **manual work only** or reject it. The approval decision is persisted with a review timestamp, status transition and optimistic revision check. No email, financial transaction, CRM write or other external action is triggered.
+- Pending proposals cannot be marked complete through the ordinary task checkbox. This is a preparation and approval workflow, not an autonomous specialist worker.
+- Rebuilt and ran existing API regression suite successfully after correcting an initial JSX duplicate-attribute error.
+- Remaining: native business-scoped reasoning, worker-specific integration authorization, immutable audit event table, authenticated two-user negative tests, cross-device/browser QA and production release gate.
