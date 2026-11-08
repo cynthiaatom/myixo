@@ -63,3 +63,8 @@ Updated 2026-11-08. **NOT PRODUCTION-APPROVED.** This document distinguishes imp
 
 - Follow-up prompts now incorporate the previous saved situation and challenge within the same company/dimension. This is deterministic context adaptation, not native model reasoning.
 - Added project and meeting records with explicit source IDs; existing ChatGPT integrations are not silently imported into MY iXo.
+
+## Subsequent reliability pass
+- Cloud saves for opportunities, decisions, tasks, notes, projects, and meetings now retain form contents when the server rejects or fails the write; only successful saves clear the corresponding form. The Business Map already uses confirmed-write advancement.
+- Decision register now visibly displays stored alternatives and evidence/unknowns, including older plain-text details.
+- TypeScript/Vite build and API regression suite passed during this pass. Authenticated end-to-end cross-device and cross-company tests remain outstanding; production promotion remains gated.
