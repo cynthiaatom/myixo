@@ -29,7 +29,7 @@ Updated 2026-11-08. **NOT PRODUCTION-APPROVED.** This document distinguishes imp
 ## 5. Release QA
 - [x] TypeScript/Vite builds passed after most recent UI changes (earlier SHA 2712a8c).
 - [x] No-auth Edge request rejected with 401.
-- [ ] Re-run latest branch build and API validation.
+- [x] Re-ran build and API validation on consolidated endpoint commit 424a738 (12 functions, passed).
 - [ ] Browser smoke tests: create company, save/edit/close, reload, switch business, sign out/in, two-device.
 - [ ] Negative tests: owner A cannot read or mutate owner B, workspace A cannot see workspace B, invalid workspace ID, replay, malformed payload.
 - [ ] Mobile viewport 320/375/768px, keyboard/focus/screenreader, WCAG contrast, loading/error/offline states.
