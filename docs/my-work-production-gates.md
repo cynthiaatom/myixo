@@ -100,3 +100,9 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - Pending proposals cannot be marked complete through the ordinary task checkbox. This is a preparation and approval workflow, not an autonomous specialist worker.
 - Rebuilt and ran existing API regression suite successfully after correcting an initial JSX duplicate-attribute error.
 - Remaining: native business-scoped reasoning, worker-specific integration authorization, immutable audit event table, authenticated two-user negative tests, cross-device/browser QA and production release gate.
+
+## Security hardening pass — cookie-authenticated writes
+- Added exact-origin validation for POST/PATCH/DELETE on the My Work Vercel proxy. Missing, malformed, scheme-downgraded and cross-host origins are rejected before reading or refreshing the iXo session cookie.
+- Added executable Node tests at `scripts/test-work-origin.mjs`: 3 test groups pass, covering cross-origin mutations, same-origin unauthenticated requests, and unauthenticated GET.
+- Build and existing API regression suite passed. This is an origin/CSRF defense-in-depth test, **not** an authenticated two-account IDOR or cross-device test.
+- Outstanding release gates remain native business-isolated model reasoning, independent worker credentials/integration authorization, audited action execution, authenticated tenant-negative testing, mobile/accessibility and My Life regression. Production unchanged.
