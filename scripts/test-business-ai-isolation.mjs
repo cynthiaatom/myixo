@@ -14,12 +14,12 @@ function request(workspace_id=A,cookie='ixo_access=user-A'){
  const res={code:200,setHeader(){},status(n){this.code=n;return this},json(data){this.data=data;return this}};
  return {req,res};
 }
-async function scenario({owner='A',target=A,leak=false,modelAnswer,duplicate=false}={}){
+async function scenario({owner='A',target=A,leak=false,modelAnswer,duplicate=false,unrelated=false}={}){
  const calls=[];
  globalThis.fetch=async(url,opts)=>{
   const u=String(url);calls.push({url:u,auth:opts.headers.authorization,body:opts.body});
   if(u.includes('resource=workspaces'))return reply({items:[{id:owner==='A'?A:B,name:owner+' company'}]});
-  if(u.includes('resource=items'))return reply({items:[{id:R,workspace_id:leak?B:target,kind:'task',title:'Follow-up agreement',details:'Commitments due soon',status:'open'},...(duplicate?[{id:R,workspace_id:target,kind:'task',title:'Duplicate',status:'open'}]:[])],has_more:false});
+  if(u.includes('resource=items'))return reply({items:[{id:R,workspace_id:leak?B:target,kind:'task',title:unrelated?'Payroll taxes':'Follow-up agreement',details:unrelated?'Tax year 2025':'Commitments due soon',status:'open'},...(duplicate?[{id:R,workspace_id:target,kind:'task',title:'Duplicate',status:'open'}]:[])],has_more:false});
   if(u.includes('chat/completions'))return reply({choices:[{message:{content:modelAnswer??'Review renewal ['+R+']'}}]});
   throw Error('Unexpected network request '+u);
  };
@@ -54,6 +54,13 @@ test('only authenticated owner scoped records are passed to the model',async()=>
  assert.equal(payload.messages[1].role,'user');
  assert.equal(JSON.parse(payload.messages[1].content).records[0].id,R);
  assert.equal(JSON.parse(payload.messages[1].content).company.id,A);
+});
+test('no matching records skips paid model inference and discloses nothing',async()=>{
+ const r=await scenario({unrelated:true});
+ assert.equal(r.res.code,200);
+ assert.equal(r.res.data.model_used,false);
+ assert.deepEqual(r.res.data.evidence_ids,[]);
+ assert.equal(r.modelCalls.length,0);
 });
 test('hallucinated or missing citations are rejected',async()=>{
  for(const modelAnswer of ['Wrong citation ['+S+']','There is a renewal']){
