@@ -55,15 +55,31 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     if(!response.ok)throw Error(data.error||'Could not save My Work');
     return data;
   };
-  const loadSpaces=async()=>{
-    if(!authenticated){setRemoteSpaces([]);setActiveSpace('');setRemoteItems([]);setRemoteStatus('signed-out');return}
-    setRemoteStatus('loading');
-    try{const data=await workRequest('?resource=workspaces');setRemoteSpaces(data.items||[]);setActiveSpace(current=>data.items?.some((x:WorkSpace)=>x.id===current)?current:(data.items?.[0]?.id||''));setRemoteStatus('ready')}
-    catch(e:any){setRemoteError(e.message);setRemoteStatus('error')}
-  };
-  useEffect(()=>{void loadSpaces()},[authenticated]);
-  useEffect(()=>{if(!authenticated||!activeSpace){setRemoteItems([]);setRecordsComplete(false);setSpecialistBrief('');setDecisionAnalysis('');setDecisionAnalysisId('');setBusinessAnswer('');setBusinessQuestion('');return}
-    let live=true;setRemoteItems([]);setRecordsComplete(false);setSpecialistBrief('');setDecisionAnalysis('');setDecisionAnalysisId('');setBusinessAnswer('');setBusinessQuestion('');setRemoteLoadingItems(true);(async()=>{const all:WorkRecord[]=[];let offset=0;let complete=false;for(let page=0;page<25;page++){const d=await workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace)+'&offset='+offset);if(!live)return;all.push(...(d.items||[]));if(!d.has_more){complete=true;break}offset=d.next_offset;if(!Number.isInteger(offset)||offset<=0)break}if(live){setRemoteItems(all);setRecordsComplete(complete);setRemoteLoadingItems(false)}})().catch(e=>{if(live){setRemoteError(e.message);setRecordsComplete(false);setRemoteLoadingItems(false)}});
+  useEffect(()=>{
+    let live=true;
+    if(!authenticated){
+      setRemoteSpaces([]);setActiveSpace('');setRemoteItems([]);setRecordsComplete(false);
+      setRemoteStatus('signed-out');setRemoteError('');setRemoteLoadingItems(false);
+      setSpecialistBrief('');setDecisionAnalysis('');setDecisionAnalysisId('');
+      setBusinessAnswer('');setBusinessQuestion('');setProposalTitle('');setProposalRationale('');
+      return()=>{live=false};
+    }
+    setRemoteStatus('loading');setRecordsComplete(false);setRemoteError('');
+    (async()=>{
+      try{
+        const data=await workRequest('?resource=workspaces');
+        if(!live)return;
+        if(!Array.isArray(data.items))throw Error('Invalid workspace response');
+        setRemoteSpaces(data.items);
+        setActiveSpace(current=>data.items.some((x:WorkSpace)=>x.id===current)?current:(data.items[0]?.id||''));
+        setRemoteStatus('ready');
+      }catch(e:any){if(live){setRemoteError(e.message);setRemoteStatus('error');setRemoteSpaces([]);setActiveSpace('');setRemoteItems([]);setRecordsComplete(false)}}
+    })();
+    return()=>{live=false};
+  },[authenticated]);
+  useEffect(()=>{if(!authenticated||!activeSpace){setRemoteItems([]);setRecordsComplete(false);setSpecialistBrief('');setDecisionAnalysis('');setDecisionAnalysisId('');setBusinessAnswer('');setBusinessQuestion('');setProposalTitle('');setProposalRationale('');setRemoteLoadingItems(false);return}
+    let live=true;setRemoteItems([]);setRecordsComplete(false);setSpecialistBrief('');setDecisionAnalysis('');setDecisionAnalysisId('');setBusinessAnswer('');setBusinessQuestion('');setProposalTitle('');setProposalRationale('');setRemoteLoadingItems(true);(async()=>{const all:WorkRecord[]=[];let offset=0;let complete=false;for(let page=0;page<25;page++){const d=await workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace)+'&offset='+offset);if(!live)return;if(!Array.isArray(d.items)||d.items.some((x:WorkRecord)=>x.workspace_id!==activeSpace))throw Error('Invalid or cross-workspace business records returned');
+      all.push(...d.items);if(!d.has_more){complete=true;break}const nextOffset=d.next_offset;if(!Number.isInteger(nextOffset)||nextOffset<=offset)throw Error('Invalid business pagination cursor');offset=nextOffset}if(live){if(!complete)throw Error('Business records exceed the safe loading limit; analysis disabled');setRemoteItems(all);setRecordsComplete(true);setRemoteLoadingItems(false)}})().catch(e=>{if(live){setRemoteError(e.message);setRecordsComplete(false);setRemoteLoadingItems(false)}});
     return()=>{live=false}
   },[activeSpace,authenticated]);
   const saveSpace=async()=>{
