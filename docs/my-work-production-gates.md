@@ -37,3 +37,26 @@ Updated 2026-11-08. **NOT PRODUCTION-APPROVED.** This document distinguishes imp
 - [ ] Explicit go/no-go before production alias change.
 
 **Do not promote until all blocking items are independently verified.** No fictional demo data should ever be presented as connected business records.
+
+## 2026-11-08 continuous implementation pass
+**Implemented on feature branch (not production):**
+- Business Map now has three separately stored stages per dimension: current situation, challenges/evidence, and measurable goal. Each uses company-scoped `dimension` records with independent revision. Saving advances only after successful server response. Existing legacy note-format answers remain as historical notes, not counted as verified completion.
+- Business Map coverage counts 30 dimensions only when all three stages have been saved; partial progress is shown separately. Prompts vary by stage, but do not yet adapt dynamically to answer content.
+- Added source-labeled CEO attention queue for overdue items and missing follow-up/review dates; no claim of AI-generated diagnosis.
+- Added decision alternatives/tradeoffs and evidence/unknowns fields in persisted decision details, and company-scoped project and meeting registers.
+- Separated opportunity, decision and assignment due-date inputs.
+- Prevented misleading cloud-data exports: session export/import only enabled for unsigned-in demo records until a complete authenticated export exists.
+- Added API offset pagination and bounded multi-page loading; incomplete loading triggers an explicit warning. Maximum 25 pages / 5,000 records is an MVP guardrail.
+- Confirmed Supabase private tables have RLS enabled and anon/authenticated roles lack direct SELECT, and anonymous Edge request returns 401.
+- TypeScript/Vite and API regression validation performed on this branch; see current deployment checks for latest SHA.
+
+**Still release-blocking:**
+- Real authenticated end-to-end save, cross-device, expired token, cross-account and cross-workspace negative tests.
+- Full native iXo business-scoped reasoning and source-grounded recommendations, not merely deterministic record summaries.
+- Agent execution engine with tool scopes, approval workflow, observability and reversible actions. Current specialist cards are planning/assignment only.
+- Real external integrations: CRM, finance, project management, calendar, documents. Existing ChatGPT connectors do not themselves authorize this independent app's workers.
+- Team roles, organization membership and enterprise-level least-privilege enforcement.
+- Structured business entity relationships beyond typed work items; evidence provenance, audit log, backups/export and migrations.
+- Mobile accessibility and full My Life regression browser tests, plus explicit promotion approval.
+
+**Security posture:** Production untouched. No autonomous specialist actions or third-party account writes performed.
