@@ -38,8 +38,44 @@ function MyWorkHome(){
   const [opportunities,setOpportunities]=useState<Array<{id:number;name:string;value:number;done:boolean}>>([]);
   const [decision,setDecision]=useState('');
   const [decisions,setDecisions]=useState<Array<{id:number;question:string;resolved:boolean}>>([]);
-  const [workspace,setWorkspace]=useState<'overview'|'opportunities'|'decisions'|'company'>('overview');
+  const [workspace,setWorkspace]=useState<'overview'|'opportunities'|'decisions'|'company'|'team'>('overview');
   const [notice,setNotice]=useState('');
+  const [workTasks,setWorkTasks]=useState<Array<{id:number;title:string;specialist:string;done:boolean}>>([]);
+  const [taskText,setTaskText]=useState('');
+  const [specialist,setSpecialist]=useState('AI CMO');
+  const [showSample,setShowSample]=useState(false);
+  const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
+  const openOpportunities=opportunities.filter(x=>!x.done);
+  const openDecisions=decisions.filter(x=>!x.resolved);
+  const pendingTasks=workTasks.filter(x=>!x.done);
+  const openPipeline=openOpportunities.reduce((sum,x)=>sum+x.value,0);
+  const addTask=()=>{if(!taskText.trim())return;setWorkTasks(items=>[...items,{id:Date.now(),title:taskText.trim(),specialist,done:false}]);setTaskText('');setWorkMode('team')};
+  const exportWorkspace=()=>{
+    const data={version:1,company,objective,opportunities,decisions,workTasks,exportedAt:new Date().toISOString()};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='myixo-work-session.json';a.click();URL.revokeObjectURL(url);
+  };
+  const importWorkspace=async(file:File|undefined)=>{
+    if(!file)return;
+    try{
+      if(file.size>200000)throw Error('File is too large');
+      const d=JSON.parse(await file.text());
+      if(d.version!==1||typeof d.company!=='string'||typeof d.objective!=='string'||!Array.isArray(d.opportunities)||!Array.isArray(d.decisions)||!Array.isArray(d.workTasks))throw Error('Invalid workspace file');
+      if(d.opportunities.length>200||d.decisions.length>200||d.workTasks.length>200)throw Error('Too many records');
+      setCompany(d.company.slice(0,200));setObjective(d.objective.slice(0,2000));
+      setOpportunities(d.opportunities.filter((x:any)=>typeof x.id==='number'&&typeof x.name==='string'&&typeof x.value==='number'&&Number.isFinite(x.value)&&typeof x.done==='boolean').map((x:any)=>({...x,name:x.name.slice(0,500)})));
+      setDecisions(d.decisions.filter((x:any)=>typeof x.id==='number'&&typeof x.question==='string'&&typeof x.resolved==='boolean').map((x:any)=>({...x,question:x.question.slice(0,500)})));
+      setWorkTasks(d.workTasks.filter((x:any)=>typeof x.id==='number'&&typeof x.title==='string'&&typeof x.specialist==='string'&&typeof x.done==='boolean').map((x:any)=>({...x,title:x.title.slice(0,500),specialist:x.specialist.slice(0,100)})));
+      setNotice('Workspace imported for this session. It is not synced to the cloud.');
+    }catch{setNotice('Import failed. Choose a valid MY iXo workspace export.')}
+  };
+  const loadSample=()=>{
+    setCompany('Northstar Growth Group');setObjective('Increase profitable growth while reducing executive workload');
+    setOpportunities([{id:101,name:'Enterprise proposal · Meridian',value:42000,done:false},{id:102,name:'Renewal · Oakridge',value:27500,done:false},{id:103,name:'Agency partnership · Atlas',value:12500,done:false}]);
+    setDecisions([{id:201,question:'Should we introduce a premium service tier?',resolved:false},{id:202,question:'Which reporting workflows should we automate first?',resolved:false}]);
+    setWorkTasks([{id:301,title:'Review funnel conversion drop-off',specialist:'AI CRO',done:false},{id:302,title:'Prepare executive growth priorities',specialist:'AI CMO',done:false},{id:303,title:'Assess weekly reporting duplication',specialist:'Operations',done:false}]);
+    setShowSample(true);setWorkspace('overview');setNotice('Illustrative demo loaded. All records are fictional.');
+  };
   const addOpportunity=()=>{const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
   const addDecision=()=>{if(!decision.trim())return;setDecisions(items=>[...items,{id:Date.now(),question:decision.trim(),resolved:false}]);setDecision('')};
   const currency=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
@@ -50,19 +86,22 @@ function MyWorkHome(){
     <div className="eyebrow">MY WORK · EXECUTIVE INTELLIGENCE</div>
     <h1>Clarity for your business.</h1>
     <p className="workIntro">A dedicated space for decisions, growth and the work that matters. Business integrations and personalized recommendations are being developed separately from your private My Life context.</p>
-    <div className="workNavigation" aria-label="My Work sections">{([['overview','Overview'],['company','My Business'],['opportunities','Opportunities'],['decisions','Decisions']] as const).map(([id,label])=><button key={id} className={workspace===id?'active':''} onClick={()=>setWorkspace(id)}>{label}</button>)}</div>
-    <div className="workSessionNote">WORKSPACE STATUS · Local planning session. Your entries are not sent to iXo, stored in a company database, or available on another device. Keep confidential business information out of this preview.</div>
+    <div className="workNavigation" aria-label="My Work sections">{([['overview','Overview'],['company','My Business'],['opportunities','Opportunities'],['decisions','Decisions'],['team','My AI Team']] as const).map(([id,label])=><button key={id} className={workspace===id?'active':''} onClick={()=>setWorkspace(id)}>{label}</button>)}</div>
+    <div className="workSessionNote">WORKSPACE STATUS · {showSample?'FICTIONAL DEMONSTRATION DATA':'SESSION-ONLY PLANNING'} · This preview does not sync to company systems. Do not enter confidential business information.</div>
+    <div className="workToolbar"><button onClick={loadSample}>Load executive demo</button><button onClick={exportWorkspace}>Export session</button><label className="workImport">Import session<input type="file" accept="application/json,.json" onChange={e=>{void importWorkspace(e.target.files?.[0]);e.target.value=''}}/></label></div>
+    <div className="workStats"><div><small>Open pipeline</small><strong>{currency(openPipeline)}</strong><span>{openOpportunities.length} opportunities</span></div><div><small>Decisions pending</small><strong>{openDecisions.length}</strong><span>Awaiting review</span></div><div><small>Team assignments</small><strong>{pendingTasks.length}</strong><span>Active planning tasks</span></div></div>
     {workspace==='company'&&<div className="workCard"><div className="eyebrow">MY BUSINESS · WORKSPACE PROFILE</div><h2>Start with what matters.</h2><p className="workMuted">Set the context for this planning session. This is not yet connected to a company knowledge graph.</p><label className="workField">Company or project name<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company"/></label><label className="workField">Primary business objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} placeholder="What are you trying to improve?"/></label><div className="workSelection">{company||'Unnamed business'} · {objective||'Add an objective to focus your work.'}</div></div>}
     {workspace==='opportunities'&&<div className="workCard"><div className="eyebrow">REVENUE OPPORTUNITIES</div><h2>Keep valuable follow-ups visible.</h2><p className="workMuted">Create and close opportunities in this temporary session. Values are potential contract value, not booked revenue.</p><div className="workEntry"><input aria-label="Opportunity name" value={opportunity} onChange={e=>setOpportunity(e.target.value)} placeholder="Opportunity or follow-up"/><input aria-label="Potential value" type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Potential $"/><button className="primary" disabled={!opportunity.trim()||!amount||Number(amount)<0} onClick={addOpportunity}>Add opportunity</button></div><div className="workMetric">{currency(opportunities.filter(x=>!x.done).reduce((sum,x)=>sum+x.value,0))}<small>Open potential contract value · {opportunities.filter(x=>!x.done).length} opportunities</small></div><div className="workItems">{opportunities.map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>setOpportunities(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}>{item.name}</span><strong>{currency(item.value)}</strong><button aria-label={'Remove '+item.name} onClick={()=>setOpportunities(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{opportunities.length===0&&<p className="workMuted">No opportunities added yet.</p>}</div>}
     {workspace==='decisions'&&<div className="workCard"><div className="eyebrow">BUSINESS DECISION REGISTER</div><h2>Decisions worth following through.</h2><p className="workMuted">Capture decisions and mark them resolved. Native iXo reasoning and durable decision continuity will be connected after scope-safe authentication is verified.</p><div className="workEntry"><input aria-label="Business decision" value={decision} onChange={e=>setDecision(e.target.value)} placeholder="What do you need to decide?"/><button className="primary" disabled={!decision.trim()} onClick={addDecision}>Add decision</button></div><div className="workItems">{decisions.map(item=><label key={item.id}><input type="checkbox" checked={item.resolved} onChange={e=>setDecisions(items=>items.map(x=>x.id===item.id?{...x,resolved:e.target.checked}:x))}/><span className={item.resolved?'completed':''}>{item.question}</span><button aria-label={'Remove '+item.question} onClick={()=>setDecisions(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{decisions.length===0&&<p className="workMuted">No decisions added yet.</p>}</div>}
+    {workspace==='team'&&<div className="workCard"><div className="eyebrow">MY AI EXECUTIVE TEAM</div><h2>Your specialists, working together.</h2><p className="workMuted">Assign planning tasks to a specialist. These are local assignments for the demonstration, not autonomous AI executions.</p><div className="workSpecialists">{[['AI CMO','Marketing strategy & growth'],['AI CRO','Conversion & revenue'],['Operations','Process & efficiency'],['Research','Market intelligence'],['Chief of Staff','Executive coordination'],['Finance','Margin & profitability']].map(([name,desc])=><button key={name} className={specialist===name?'active':''} onClick={()=>setSpecialist(name)}><strong>{name}</strong><small>{desc}</small></button>)}</div><div className="workEntry"><input aria-label="Team task" value={taskText} onChange={e=>setTaskText(e.target.value)} placeholder="Describe an assignment"/><button className="primary" disabled={!taskText.trim()} onClick={addTask}>Assign to {specialist}</button></div><div className="workItems">{workTasks.map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>setWorkTasks(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}><strong>{item.specialist}</strong> · {item.title}</span><button aria-label={'Remove '+item.title} onClick={()=>setWorkTasks(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{!workTasks.length&&<p className="workMuted">Select a specialist and create your first assignment.</p>}</div>}
     <div className="workCard workBrief">
-      <div className="eyebrow">EXECUTIVE BRIEF · ILLUSTRATIVE EXAMPLES</div>
+      <div className="eyebrow">EXECUTIVE BRIEF · {showSample?'FICTIONAL DEMO':'YOUR SESSION DATA'}</div>
       <h2>Good morning. Here's what matters.</h2>
-      <p className="workMuted">The following are hypothetical examples, not insights from your connected business systems.</p>
+      <p className="workMuted">{company?company+' · ':''}{objective||'Your priorities and next decisions in one place.'} This briefing is calculated from session entries, not connected business systems.</p>
       <div className="workInsights">
-        <article><strong>Revenue opportunity</strong><p>Three qualified opportunities are overdue for follow-up, representing $82,000 in potential contract value.</p><small>Hypothetical CRM scenario</small></article>
-        <article><strong>Decision waiting</strong><p>A proposed price increase could improve contribution margin, but the customer-retention assumption has not been validated.</p><small>Hypothetical decision scenario</small></article>
-        <article><strong>Operational improvement</strong><p>Two teams may be duplicating weekly reporting work. Potential saving: four hours per week, pending confirmation.</p><small>Hypothetical project scenario</small></article>
+        <article><strong>Revenue opportunity</strong><p>{openOpportunities.length?openOpportunities.length+' open opportunities represent '+currency(openPipeline)+' in potential contract value.':'No open opportunities recorded yet. Add your first prospect or deal.'}</p><small>{showSample?'Fictional demo opportunities':'Session opportunity register'}</small><button onClick={()=>setWorkspace('opportunities')}>Review pipeline →</button></article>
+        <article><strong>Decision waiting</strong><p>{openDecisions.length?openDecisions.length+' decisions are awaiting resolution. Next: '+openDecisions[0].question:'No open business decisions recorded. Capture a strategic question to revisit.'}</p><small>{showSample?'Fictional demo decision register':'Session decision register'}</small><button onClick={()=>setWorkspace('decisions')}>Review decisions →</button></article>
+        <article><strong>Executive team priorities</strong><p>{pendingTasks.length?pendingTasks.length+' assignments are active. Next: '+pendingTasks[0].title:'No team assignments yet. Choose a specialist and create a planning task.'}</p><small>{showSample?'Fictional demo assignments':'Session assignment register'}</small><button onClick={()=>setWorkspace('team')}>Review AI team →</button></article>
       </div>
       <fieldset className="workFocus"><legend>What would you like to investigate first?</legend>
         {(Object.keys(topics) as Array<keyof typeof topics>).map(k=><label key={k}><input type="radio" name="work-focus" checked={focus===k} onChange={()=>setFocus(k)}/>{topics[k]}</label>)}
