@@ -38,6 +38,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [remoteLoadingItems,setRemoteLoadingItems]=useState(false);
   const [newDue,setNewDue]=useState('');
   const [goal,setGoal]=useState('');
+  const [workStarted,setWorkStarted]=useState(false);
   const workRequest=async(path:string,method='GET',body?:unknown)=>{
     const response=await fetch('/api/ixo/session?work=1&'+path.replace(/^\?/,''),{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});
     const data=await response.json().catch(()=>({}));
@@ -59,7 +60,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     if(!authenticated){setRemoteError('Sign in to My Life first to enable secure business storage.');return}
     if(!company.trim())return;
     setRemoteBusy(true);setRemoteError('');
-    try{const d=await workRequest('?resource=workspaces','POST',{name:company,objective});setRemoteSpaces(xs=>[...xs,d.item]);setActiveSpace(d.item.id);setNotice('Business workspace saved securely.')}
+    try{const d=await workRequest('?resource=workspaces','POST',{name:company,objective});setRemoteSpaces(xs=>[...xs,d.item]);setActiveSpace(d.item.id);setNotice('Business workspace saved securely. Next, build your Business Map.');setWorkspace('map')}
     catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
   };
   const saveRemoteItem=async(kind:string,title:string,amount=0,specialist='',due_at:string|null=null)=>{
@@ -150,8 +151,11 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const contribution=revenue*lift/100*margin/100;
   const timeValue=hours*hourValue*52;
   const topics={revenue:'Recover overdue revenue opportunities',pricing:'Evaluate a pricing decision',operations:'Investigate duplicated reporting work'};
+  const hasBusiness=remoteSpaces.length>0;
+  const showBusinessWelcome=!workStarted&&!hasBusiness;
   return <section className="workHome" aria-label="My Work">
-    <div className="eyebrow">MY WORK · EXECUTIVE INTELLIGENCE</div>
+    {showBusinessWelcome&&<div className="workWelcome"><div className="eyebrow">BUILD YOUR BUSINESS INTELLIGENCE</div><h1>BUILD YOUR <span>Business iXo</span></h1><p>Give your iXo the context to understand your business, remember what matters, and help you make better decisions.</p><div className="workWelcomePanel"><div className="eyebrow">YOUR BUSINESS, UNDERSTOOD</div><h2>Your business iXo becomes more useful as it learns how your company works.</h2><p>Start with a few thoughtful questions about your business, customers, priorities and goals. Build your Business Map one answer at a time.</p><button className="primary" onClick={()=>{setWorkStarted(true);setWorkspace(authenticated?'company':'map')}}>Build My Business iXo →</button><p className="workMuted">Your personal My Life memory stays separate. Sign in to save business answers securely across devices.</p></div></div>}
+    {!showBusinessWelcome&&<><div className="eyebrow">MY WORK · EXECUTIVE INTELLIGENCE</div>
     <h1>Clarity for your business.</h1>
     <p className="workIntro">A dedicated space for decisions, growth and the work that matters. Business integrations and personalized recommendations are being developed separately from your private My Life context.</p>
     <div className="workNavigation" aria-label="My Work sections">{([['overview','Overview'],['company','My Business'],['opportunities','Opportunities'],['goals','Goals'],['decisions','Decisions'],['notes','Memory'],['map','Business Map'],['today','Today'],['mirror','Mirror'],['team','My AI Team']] as const).map(([id,label])=><button key={id} className={workspace===id?'active':''} onClick={()=>setWorkspace(id)}>{label}</button>)}</div>
@@ -203,6 +207,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     </div>
     <div className="workCard"><div className="eyebrow">WORKSPACE TOOLS</div><h2>Your business intelligence workspace</h2><div className="workModules">{['My Business','Decisions','Opportunities','Marketing / Revenue','My AI Team','Business Memory'].map(x=><span key={x}>{x}</span>)}</div><p className="workMuted">Company-specific records, approvals and team access will remain isolated from personal memory and from other businesses.</p></div>
     {notice&&<p role="status">{notice}</p>}
+  </>}
   </section>;
 }
 
