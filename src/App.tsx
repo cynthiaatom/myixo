@@ -63,12 +63,12 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const saveRemoteItem=async(kind:string,title:string,amount=0,specialist='',due_at:string|null=null)=>{
     if(!activeSpace){setRemoteError('Create or select a business workspace first.');return}
     setRemoteBusy(true);setRemoteError('');
-    try{const d=await workRequest('?resource=items','POST',{workspace_id:activeSpace,kind,title,amount,specialist,due_at});setRemoteItems(xs=>[d.item,...xs]);setNotice('Saved to your private business workspace.')}
+    try{const d=await workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace),'POST',{workspace_id:activeSpace,kind,title,amount,specialist,due_at});setRemoteItems(xs=>[d.item,...xs]);setNotice('Saved to your private business workspace.')}
     catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
   };
   const updateRemoteItem=async(item:WorkRecord,status:string)=>{
     setRemoteBusy(true);setRemoteError('');
-    try{const d=await workRequest('?resource=items&id='+item.id,'PATCH',{revision:item.revision,status,title:item.title,details:item.details,amount:item.amount,specialist:item.specialist,due_at:item.due_at});setRemoteItems(xs=>xs.map(x=>x.id===item.id?d.item:x))}
+    try{const d=await workRequest('?resource=items&workspace='+encodeURIComponent(item.workspace_id)+'&id='+item.id,'PATCH',{revision:item.revision,status,title:item.title,details:item.details,amount:item.amount,specialist:item.specialist,due_at:item.due_at});setRemoteItems(xs=>xs.map(x=>x.id===item.id?d.item:x))}
     catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
   };
   const [revenue,setRevenue]=useState(2000000);
