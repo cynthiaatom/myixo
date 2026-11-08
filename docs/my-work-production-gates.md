@@ -60,3 +60,6 @@ Updated 2026-11-08. **NOT PRODUCTION-APPROVED.** This document distinguishes imp
 - Mobile accessibility and full My Life regression browser tests, plus explicit promotion approval.
 
 **Security posture:** Production untouched. No autonomous specialist actions or third-party account writes performed.
+
+- Follow-up prompts now incorporate the previous saved situation and challenge within the same company/dimension. This is deterministic context adaptation, not native model reasoning.
+- Added project and meeting records with explicit source IDs; existing ChatGPT integrations are not silently imported into MY iXo.
