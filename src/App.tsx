@@ -89,35 +89,6 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     finally{setBusinessMemoryBusy(false)}
   };
 
-  useEffect(()=>{
-    if(!authenticated||workspace!=='company'){setNativeWorkFacts([]);return}
-    let cancelled=false;
-    const load=async()=>{
-      setNativeWorkLoading(true);setNativeWorkError('');
-      try{
-        const facts:Array<{id:string;value:string}>=[];
-        let cursor='',complete=false;
-        for(let page=0;page<20;page++){
-          const r=await fetch('/api/ixo/memory?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
-          const data=await r.json().catch(()=>({}));
-          if(!r.ok||!Array.isArray(data.items))throw Error(data.error||'Unable to load native iXo facts');
-          for(const item of data.items){
-            const category=String(item.category||'').toLowerCase();
-            const scope=String(item.scope||'').toLowerCase();
-            if((category==='work'||scope==='work')&&typeof item.value==='string'&&typeof item.id==='string')facts.push({id:item.id,value:item.value});
-          }
-          if(!data.next_cursor){complete=true;break}
-          if(typeof data.next_cursor!=='string'||cursor===data.next_cursor)throw Error('Invalid iXo fact pagination');
-          cursor=data.next_cursor;
-        }
-        if(!complete)throw Error('iXo has more facts than the current retrieval limit; showing a partial Work inventory is unsafe');
-        if(!cancelled)setNativeWorkFacts(facts);
-      }catch(e:any){if(!cancelled)setNativeWorkError(e.message||'iXo facts could not be loaded')}
-      finally{if(!cancelled)setNativeWorkLoading(false)}
-    };
-    void load();
-    return ()=>{cancelled=true};
-  },[authenticated,workspace]);
   const syncBusinessMemoryFromIxo=async()=>{
     if(!liveMode||businessMemoryImportBusy||businessMemoryBusy||remoteLoadingItems||!recordsComplete)return;
     const target=activeSpace;
@@ -282,6 +253,36 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [decisionAnalysisId,setDecisionAnalysisId]=useState('');
   const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
   const liveMode=authenticated&&!!activeSpace&&remoteStatus==='ready';
+  useEffect(()=>{
+    if(!authenticated||workspace!=='company'){setNativeWorkFacts([]);return}
+    let cancelled=false;
+    const load=async()=>{
+      setNativeWorkLoading(true);setNativeWorkError('');
+      try{
+        const facts:Array<{id:string;value:string}>=[];
+        let cursor='',complete=false;
+        for(let page=0;page<20;page++){
+          const r=await fetch('/api/ixo/memory?limit=100'+(cursor?'&cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
+          const data=await r.json().catch(()=>({}));
+          if(!r.ok||!Array.isArray(data.items))throw Error(data.error||'Unable to load native iXo facts');
+          for(const item of data.items){
+            const category=String(item.category||'').toLowerCase();
+            const scope=String(item.scope||'').toLowerCase();
+            if((category==='work'||scope==='work')&&typeof item.value==='string'&&typeof item.id==='string')facts.push({id:item.id,value:item.value});
+          }
+          if(!data.next_cursor){complete=true;break}
+          if(typeof data.next_cursor!=='string'||cursor===data.next_cursor)throw Error('Invalid iXo fact pagination');
+          cursor=data.next_cursor;
+        }
+        if(!complete)throw Error('iXo has more facts than the current retrieval limit; showing a partial Work inventory is unsafe');
+        if(!cancelled)setNativeWorkFacts(facts);
+      }catch(e:any){if(!cancelled)setNativeWorkError(e.message||'iXo facts could not be loaded')}
+      finally{if(!cancelled)setNativeWorkLoading(false)}
+    };
+    void load();
+    return ()=>{cancelled=true};
+  },[authenticated,workspace]);
+
   // Automatic sync runs once per entry into My Business, after existing records finish loading.
   // The source-memory ID check below makes repeated visits incremental.
   useEffect(()=>{
