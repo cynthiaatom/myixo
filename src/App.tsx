@@ -152,6 +152,8 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [showSample,setShowSample]=useState(false);
   const [exportBusy,setExportBusy]=useState(false);
   const [specialistBrief,setSpecialistBrief]=useState('');
+  const [decisionAnalysis,setDecisionAnalysis]=useState('');
+  const [decisionAnalysisId,setDecisionAnalysisId]=useState('');
   const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
   const liveMode=authenticated&&!!activeSpace&&remoteStatus==='ready';
   const dimensionRecords=remoteItems.filter(x=>x.kind==='dimension');
@@ -225,6 +227,28 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
       'Requested deliverable: Identify 3 prioritized actions, distinguish verified facts from hypotheses, cite the record IDs above, list missing information, and flag every action requiring owner approval.'
     ].join('\n');
     setSpecialistBrief(brief);
+  };
+  const analyzeDecision=(item:WorkRecord)=>{
+    if(!liveMode||remoteLoadingItems||!recordsComplete||item.workspace_id!==activeSpace){setRemoteError('Complete company data must be loaded before reviewing a decision.');return}
+    let options='',evidence='';
+    try{const d=JSON.parse(item.details||'{}');options=String(d.options||'');evidence=String(d.evidence||'')}catch{evidence=item.details||''}
+    const related=remoteItems.filter(x=>x.id!==item.id&&x.kind!=='dimension'&&x.kind!=='note'&&(
+      x.title.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>4).some(w=>item.title.toLowerCase().includes(w))
+    )).slice(0,8);
+    const output=[
+      'BUSINESS DECISION REVIEW — RULE-BASED, NOT AN AI RECOMMENDATION',
+      'Decision: '+item.title,
+      'Company: '+(remoteSpaces.find(x=>x.id===activeSpace)?.name||'Selected company'),
+      'Source: decision record '+item.id+' (revision '+item.revision+')',
+      'KNOWN: '+(evidence||'No supporting evidence recorded.'),
+      'OPTIONS / TRADEOFFS: '+(options||'No alternatives documented.'),
+      'REVIEW DATE: '+(item.due_at||'UNKNOWN — add a decision review date.'),
+      'RELATED RECORDS: '+(related.length?related.map(x=>'['+x.kind+' '+x.id+'] '+x.title).join('; '):'None found by title overlap.'),
+      'UNKNOWNS: '+[!options&&'What options are being considered?',!evidence&&'What facts support each option?',!item.due_at&&'When will this decision be reviewed?',!related.length&&'Which business goals or projects does this affect?'].filter(Boolean).join(' '),
+      'NEXT STEP: Compare measurable outcomes, downside risks, reversibility, dependencies and decision owner before selecting an option.',
+      'HUMAN CONTROL: This review does not choose, execute, approve or communicate a decision.'
+    ].join('\n');
+    setDecisionAnalysis(output);setDecisionAnalysisId(item.id);
   };
   const addTask=async()=>{if(!taskText.trim()||locked||remoteBusy)return;if(liveMode){const saved=await saveRemoteItem('task',taskText,0,specialist,taskDue||null);if(saved){setTaskText('');setTaskDue('')}return}setWorkTasks(items=>[...items,{id:Date.now(),title:taskText.trim(),specialist,done:false}]);setTaskText('');setWorkMode('team')};
   const exportWorkspace=async()=>{if(authenticated){
