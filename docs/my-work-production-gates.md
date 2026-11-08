@@ -132,3 +132,9 @@ Remaining production blockers: authenticated two-account and two-device tests; o
 - Because the project has no configured independent model key or explicit opt-in, the endpoint remains **disabled** and returns a clear unavailable response; the existing free local evidence search remains available. No model requests were sent.
 - Verified production build, six origin/AI request gate tests, and 12-function API regression suite on the authorized Windows environment.
 - A prior attempt to inspect the deployed preview using headless Chrome reached Vercel's deployment authentication page rather than the application, so authenticated browser/mobile acceptance testing is **not** claimed. A protected preview requires an authorized deployment-access path.
+
+## Mocked two-identity security regression (2026-11-08)
+- Added `scripts/test-business-ai-isolation.mjs`, using two **simulated** authenticated owner identities and an in-memory mocked transport. The test verifies that one owner's workspace cannot be queried by the other, and that an unauthorized request never reaches the AI provider.
+- Added fail-closed checks for cross-company record leakage, invalid/duplicate record IDs within or across pages, hallucinated citations, and an uncited model answer when supporting records exist. Valid owner-scoped evidence is sent to the mocked provider and citations are returned with the correct company ID and `external_actions_executed:false`.
+- **11/11** server-side test cases passed, the TypeScript/Vite build passed, and the **12-function** API/static regression suite passed on the authorized Windows environment. No actual AI inference or customer data was used in these tests.
+- This is **mocked** tenant isolation, not a completed two-real-user authentication/RLS penetration test. Native business AI remains disabled without independent app-owned credentials and explicit data-processing approval; production remains unchanged.
