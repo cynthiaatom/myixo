@@ -63,6 +63,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [businessMemoryBusy,setBusinessMemoryBusy]=useState(false);
   const [businessMemoryError,setBusinessMemoryError]=useState('');
   const previewExistingMemory=async()=>{
+    const previewWorkspace=activeSpace;
     setBusinessMemoryBusy(true);setBusinessMemoryError('');setBusinessMemoryPreview([]);setBusinessMemorySelected([]);setBusinessMemoryImportMessage('');
     try{
       if(!authenticated||!activeSpace)throw Error('Sign in and select a business before reviewing existing iXo memory.');
@@ -78,8 +79,9 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
         cursor=data.next_cursor;
       }
       if(!complete)throw Error('Memory preview is incomplete. Nothing was imported.');
+      if(activeSpaceRef.current!==previewWorkspace)throw Error('Company changed during memory review. Start a new preview.');
       setBusinessMemoryPreview(all);
-    }catch(e:any){setBusinessMemoryError(e.message||'Memory preview unavailable')}
+    }catch(e:any){if(activeSpaceRef.current===previewWorkspace)setBusinessMemoryError(e.message||'Memory preview unavailable')}
     finally{setBusinessMemoryBusy(false)}
   };
 
