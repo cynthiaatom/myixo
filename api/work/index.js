@@ -10,6 +10,8 @@ export default async function handler(req,res){
  if(!token)return res.status(401).json({error:'Sign in to iXo to save My Work'});
  const q=new URLSearchParams();
  for(const k of ['resource','workspace','id'])if(typeof req.query?.[k]==='string')q.set(k,req.query[k]);
+ if(req.method!=='GET'&&!['application/json'].some(x=>String(req.headers['content-type']||'').toLowerCase().startsWith(x)))return res.status(415).json({error:'JSON required'});
+ if(req.method!=='GET'&&JSON.stringify(req.body||{}).length>12000)return res.status(413).json({error:'Request too large'});
  const call=t=>fetch(EDGE+'?'+q.toString(),{method:req.method,headers:{authorization:'Bearer '+t,'content-type':'application/json'},body:req.method==='GET'?undefined:JSON.stringify(req.body||{}),signal:AbortSignal.timeout(12000),cache:'no-store'});
  try{
   let r=await call(token);
