@@ -1,9 +1,11 @@
 import {ixoFetch,errorDetail} from '../../lib/ixo-client.js';
 import {handleWork} from '../../lib/work-proxy.js';
+import {handleBusinessReason} from '../../lib/work-reason.js';
 
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate');
   if(req.query?.work==='1')return handleWork(req,res);
+  if(req.query?.business_ai==='1')return handleBusinessReason(req,res);
   if(req.method==='POST'){
     const action=String(req.body?.action||'');
     if(action==='request_verified_email'){
