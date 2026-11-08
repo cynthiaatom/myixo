@@ -37,7 +37,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [newDue,setNewDue]=useState('');
   const [goal,setGoal]=useState('');
   const workRequest=async(path:string,method='GET',body?:unknown)=>{
-    const response=await fetch('/api/work'+path,{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+    const response=await fetch('/api/ixo/session?work=1&'+path.replace(/^\?/,''),{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw Error(data.error||'Could not save My Work');
     return data;
