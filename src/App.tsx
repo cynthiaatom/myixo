@@ -85,6 +85,8 @@ function MyWorkHome(){
       <p className="workMuted">Before implementation costs. Time value assumes productive redeployment; do not double-count when time savings drive the revenue gain.</p>
     </div>
     <div className="workCard"><div className="eyebrow">WORKSPACE TOOLS</div><h2>Your business intelligence workspace</h2><div className="workModules">{['My Business','Decisions','Opportunities','MY AI CMO / CRO','My AI Team','Business Memory'].map(x=><span key={x}>{x}</span>)}</div><p className="workMuted">Company-specific records, approvals and team access will remain isolated from personal memory and from other businesses.</p></div>
+    </>}
+    {notice&&<p role="status">{notice}</p>}
   </section>;
 }
 
