@@ -86,15 +86,6 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     finally{setBusinessMemoryBusy(false)}
   };
 
-  // Automatic sync runs once per entry into My Business, after existing records finish loading.
-  // The source-memory ID check below makes repeated visits incremental.
-  useEffect(()=>{
-    if(workspace!=='company'||!authenticated){businessAutoSyncKeyRef.current='';return}
-    if(!activeSpace||remoteStatus!=='ready'||remoteLoadingItems||!recordsComplete)return;
-    if(businessAutoSyncKeyRef.current===activeSpace)return;
-    businessAutoSyncKeyRef.current=activeSpace;
-    void syncBusinessMemoryFromIxo();
-  },[workspace,authenticated,activeSpace,remoteStatus,remoteLoadingItems,recordsComplete]);
   const syncBusinessMemoryFromIxo=async()=>{
     if(!liveMode||businessMemoryImportBusy||businessMemoryBusy||remoteLoadingItems||!recordsComplete)return;
     const target=activeSpace;
@@ -259,6 +250,16 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   const [decisionAnalysisId,setDecisionAnalysisId]=useState('');
   const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
   const liveMode=authenticated&&!!activeSpace&&remoteStatus==='ready';
+  // Automatic sync runs once per entry into My Business, after existing records finish loading.
+  // The source-memory ID check below makes repeated visits incremental.
+  useEffect(()=>{
+    if(workspace!=='company'||!authenticated){businessAutoSyncKeyRef.current='';return}
+    if(!activeSpace||remoteStatus!=='ready'||remoteLoadingItems||!recordsComplete)return;
+    if(businessAutoSyncKeyRef.current===activeSpace)return;
+    businessAutoSyncKeyRef.current=activeSpace;
+    void syncBusinessMemoryFromIxo();
+  },[workspace,authenticated,activeSpace,remoteStatus,remoteLoadingItems,recordsComplete]);
+
   const dimensionRecords=remoteItems.filter(x=>x.kind==='dimension');
   const dimensionKey=(department:string,dimension:string,stage:number)=>department+' | '+dimension+' | '+stage;
   const dimensionAnswers={get:(key:string)=>dimensionRecords.find(x=>x.title===key),has:(key:string)=>dimensionRecords.some(x=>x.title===key)};
