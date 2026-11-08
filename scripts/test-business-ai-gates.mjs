@@ -14,7 +14,7 @@ test('business AI never runs without explicit model opt-in and app credential',a
  finally{if(prev===undefined)delete process.env.MYIXO_BUSINESS_AI_ENABLED;else process.env.MYIXO_BUSINESS_AI_ENABLED=prev}
 });
 test('business AI rejects foreign origins and malformed scope before model access',async()=>{
- for(const origin of ['https://attacker.example','http://myixo.example',undefined]){
+ for(const origin of ['https://attacker.example','http://myixo.example',null]){
   const res=await run({origin});assert.equal(res.code,403);
  }
  for(const body of [{workspace_id:'bad',question:'What is overdue?'},{workspace_id:ws,question:'a'}]){
