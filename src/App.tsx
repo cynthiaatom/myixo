@@ -24,7 +24,50 @@ type InitState='LOADING'|'READY'|'PARTIAL'|'AUTH_REQUIRED'|'ERROR';
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 
-function MyWorkHome(){
+type WorkRecord={id:string;workspace_id:string;kind:string;title:string;details:string;status:string;amount:number;specialist:string;due_at:string|null;revision:number};
+type WorkSpace={id:string;name:string;objective:string};
+function MyWorkHome({authenticated}:{authenticated:boolean}){
+  const [remoteSpaces,setRemoteSpaces]=useState<WorkSpace[]>([]);
+  const [activeSpace,setActiveSpace]=useState('');
+  const [remoteItems,setRemoteItems]=useState<WorkRecord[]>([]);
+  const [remoteStatus,setRemoteStatus]=useState<'loading'|'ready'|'signed-out'|'error'>('loading');
+  const [remoteError,setRemoteError]=useState('');
+  const [remoteBusy,setRemoteBusy]=useState(false);
+  const workRequest=async(path:string,method='GET',body?:unknown)=>{
+    const response=await fetch('/api/work'+path,{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(data.error||'Could not save My Work');
+    return data;
+  };
+  const loadSpaces=async()=>{
+    if(!authenticated){setRemoteStatus('signed-out');return}
+    setRemoteStatus('loading');
+    try{const data=await workRequest('?resource=workspaces');setRemoteSpaces(data.items||[]);setActiveSpace(current=>current||(data.items?.[0]?.id||''));setRemoteStatus('ready')}
+    catch(e:any){setRemoteError(e.message);setRemoteStatus('error')}
+  };
+  useEffect(()=>{void loadSpaces()},[authenticated]);
+  useEffect(()=>{if(!authenticated||!activeSpace){setRemoteItems([]);return}
+    let live=true;workRequest('?resource=items&workspace='+encodeURIComponent(activeSpace)).then(d=>{if(live)setRemoteItems(d.items||[])}).catch(e=>{if(live)setRemoteError(e.message)});
+    return()=>{live=false}
+  },[activeSpace,authenticated]);
+  const saveSpace=async()=>{
+    if(!authenticated){setRemoteError('Sign in to My Life first to enable secure business storage.');return}
+    if(!company.trim())return;
+    setRemoteBusy(true);setRemoteError('');
+    try{const d=await workRequest('?resource=workspaces','POST',{name:company,objective});setRemoteSpaces(xs=>[...xs,d.item]);setActiveSpace(d.item.id);setNotice('Business workspace saved securely.')}
+    catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
+  };
+  const saveRemoteItem=async(kind:string,title:string,amount=0,specialist='')=>{
+    if(!activeSpace){setRemoteError('Create or select a business workspace first.');return}
+    setRemoteBusy(true);setRemoteError('');
+    try{const d=await workRequest('?resource=items','POST',{workspace_id:activeSpace,kind,title,amount,specialist});setRemoteItems(xs=>[d.item,...xs]);setNotice('Saved to your private business workspace.')}
+    catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
+  };
+  const updateRemoteItem=async(item:WorkRecord,status:string)=>{
+    setRemoteBusy(true);setRemoteError('');
+    try{const d=await workRequest('?resource=items&id='+item.id,'PATCH',{revision:item.revision,status,title:item.title,details:item.details,amount:item.amount,specialist:item.specialist,due_at:item.due_at});setRemoteItems(xs=>xs.map(x=>x.id===item.id?d.item:x))}
+    catch(e:any){setRemoteError(e.message)}finally{setRemoteBusy(false)}
+  };
   const [revenue,setRevenue]=useState(2000000);
   const [margin,setMargin]=useState(20);
   const [lift,setLift]=useState(3);
@@ -45,11 +88,12 @@ function MyWorkHome(){
   const [specialist,setSpecialist]=useState('Marketing');
   const [showSample,setShowSample]=useState(false);
   const [workMode,setWorkMode]=useState<'brief'|'team'>('brief');
-  const openOpportunities=opportunities.filter(x=>!x.done);
-  const openDecisions=decisions.filter(x=>!x.resolved);
-  const pendingTasks=workTasks.filter(x=>!x.done);
+  const liveMode=authenticated&&!!activeSpace&&remoteStatus==='ready';
+  const openOpportunities=liveMode?remoteItems.filter(x=>x.kind==='opportunity'&&x.status==='open').map(x=>({id:x.id,name:x.title,value:Number(x.amount),done:false})):opportunities.filter(x=>!x.done);
+  const openDecisions=liveMode?remoteItems.filter(x=>x.kind==='decision'&&x.status==='open').map(x=>({id:x.id,question:x.title,resolved:false})):decisions.filter(x=>!x.resolved);
+  const pendingTasks=liveMode?remoteItems.filter(x=>x.kind==='task'&&x.status==='open').map(x=>({id:x.id,title:x.title,specialist:x.specialist,done:false})):workTasks.filter(x=>!x.done);
   const openPipeline=openOpportunities.reduce((sum,x)=>sum+x.value,0);
-  const addTask=()=>{if(!taskText.trim())return;setWorkTasks(items=>[...items,{id:Date.now(),title:taskText.trim(),specialist,done:false}]);setTaskText('');setWorkMode('team')};
+  const addTask=()=>{if(!taskText.trim())return;if(liveMode){void saveRemoteItem('task',taskText,0,specialist);setTaskText('');return}setWorkTasks(items=>[...items,{id:Date.now(),title:taskText.trim(),specialist,done:false}]);setTaskText('');setWorkMode('team')};
   const exportWorkspace=()=>{
     const data={version:1,company,objective,opportunities,decisions,workTasks,exportedAt:new Date().toISOString()};
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -76,8 +120,8 @@ function MyWorkHome(){
     setWorkTasks([{id:301,title:'Review funnel conversion drop-off',specialist:'AI CRO',done:false},{id:302,title:'Prepare executive growth priorities',specialist:'AI CMO',done:false},{id:303,title:'Assess weekly reporting duplication',specialist:'Operations',done:false}]);
     setShowSample(true);setWorkspace('overview');setNotice('Illustrative demo loaded. All records are fictional.');
   };
-  const addOpportunity=()=>{const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
-  const addDecision=()=>{if(!decision.trim())return;setDecisions(items=>[...items,{id:Date.now(),question:decision.trim(),resolved:false}]);setDecision('')};
+  const addOpportunity=()=>{if(liveMode){void saveRemoteItem('opportunity',opportunity,Number(amount));setOpportunity('');setAmount('');return}const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
+  const addDecision=()=>{if(!decision.trim())return;if(liveMode){void saveRemoteItem('decision',decision);setDecision('');return}setDecisions(items=>[...items,{id:Date.now(),question:decision.trim(),resolved:false}]);setDecision('')};
   const currency=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const contribution=revenue*lift/100*margin/100;
   const timeValue=hours*hourValue*52;
@@ -87,13 +131,15 @@ function MyWorkHome(){
     <h1>Clarity for your business.</h1>
     <p className="workIntro">A dedicated space for decisions, growth and the work that matters. Business integrations and personalized recommendations are being developed separately from your private My Life context.</p>
     <div className="workNavigation" aria-label="My Work sections">{([['overview','Overview'],['company','My Business'],['opportunities','Opportunities'],['decisions','Decisions'],['team','My AI Team']] as const).map(([id,label])=><button key={id} className={workspace===id?'active':''} onClick={()=>setWorkspace(id)}>{label}</button>)}</div>
-    <div className="workSessionNote">WORKSPACE STATUS · {showSample?'FICTIONAL DEMONSTRATION DATA':'SESSION-ONLY PLANNING'} · This preview does not sync to company systems. Do not enter confidential business information.</div>
+    <div className="workSessionNote">WORKSPACE STATUS · {showSample?'FICTIONAL DEMONSTRATION DATA':liveMode?'PRIVATE BUSINESS STORAGE ENABLED':remoteStatus==='signed-out'?'SIGN IN REQUIRED FOR CLOUD STORAGE':'DEMO / LOCAL PLANNING'} · {liveMode?'Your selected business workspace is stored separately from personal My Life records.':'Use fictional data for demos. Sign in and create a workspace for persistent records.'}</div>
+    {remoteError&&<div className="connectError" role="alert">{remoteError}<button onClick={()=>setRemoteError('')}>Dismiss</button></div>}
+    {authenticated&&remoteSpaces.length>0&&<label className="workField">Active business<select value={activeSpace} onChange={e=>{setActiveSpace(e.target.value);setShowSample(false)}}>{remoteSpaces.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>}
     <div className="workToolbar"><button onClick={loadSample}>Load executive demo</button><button onClick={exportWorkspace}>Export session</button><label className="workImport">Import session<input type="file" accept="application/json,.json" onChange={e=>{void importWorkspace(e.target.files?.[0]);e.target.value=''}}/></label></div>
     <div className="workStats"><div><small>Open pipeline</small><strong>{currency(openPipeline)}</strong><span>{openOpportunities.length} opportunities</span></div><div><small>Decisions pending</small><strong>{openDecisions.length}</strong><span>Awaiting review</span></div><div><small>Team assignments</small><strong>{pendingTasks.length}</strong><span>Active planning tasks</span></div></div>
-    {workspace==='company'&&<div className="workCard"><div className="eyebrow">MY BUSINESS · WORKSPACE PROFILE</div><h2>Start with what matters.</h2><p className="workMuted">Set the context for this planning session. This is not yet connected to a company knowledge graph.</p><label className="workField">Company or project name<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company"/></label><label className="workField">Primary business objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} placeholder="What are you trying to improve?"/></label><div className="workSelection">{company||'Unnamed business'} · {objective||'Add an objective to focus your work.'}</div></div>}
-    {workspace==='opportunities'&&<div className="workCard"><div className="eyebrow">REVENUE OPPORTUNITIES</div><h2>Keep valuable follow-ups visible.</h2><p className="workMuted">Create and close opportunities in this temporary session. Values are potential contract value, not booked revenue.</p><div className="workEntry"><input aria-label="Opportunity name" value={opportunity} onChange={e=>setOpportunity(e.target.value)} placeholder="Opportunity or follow-up"/><input aria-label="Potential value" type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Potential $"/><button className="primary" disabled={!opportunity.trim()||!amount||Number(amount)<0} onClick={addOpportunity}>Add opportunity</button></div><div className="workMetric">{currency(opportunities.filter(x=>!x.done).reduce((sum,x)=>sum+x.value,0))}<small>Open potential contract value · {opportunities.filter(x=>!x.done).length} opportunities</small></div><div className="workItems">{opportunities.map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>setOpportunities(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}>{item.name}</span><strong>{currency(item.value)}</strong><button aria-label={'Remove '+item.name} onClick={()=>setOpportunities(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{opportunities.length===0&&<p className="workMuted">No opportunities added yet.</p>}</div>}
-    {workspace==='decisions'&&<div className="workCard"><div className="eyebrow">BUSINESS DECISION REGISTER</div><h2>Decisions worth following through.</h2><p className="workMuted">Capture decisions and mark them resolved. Native iXo reasoning and durable decision continuity will be connected after scope-safe authentication is verified.</p><div className="workEntry"><input aria-label="Business decision" value={decision} onChange={e=>setDecision(e.target.value)} placeholder="What do you need to decide?"/><button className="primary" disabled={!decision.trim()} onClick={addDecision}>Add decision</button></div><div className="workItems">{decisions.map(item=><label key={item.id}><input type="checkbox" checked={item.resolved} onChange={e=>setDecisions(items=>items.map(x=>x.id===item.id?{...x,resolved:e.target.checked}:x))}/><span className={item.resolved?'completed':''}>{item.question}</span><button aria-label={'Remove '+item.question} onClick={()=>setDecisions(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{decisions.length===0&&<p className="workMuted">No decisions added yet.</p>}</div>}
-    {workspace==='team'&&<div className="workCard"><div className="eyebrow">MY AI EXECUTIVE TEAM</div><h2>Your specialists, working together.</h2><p className="workMuted">Assign planning tasks to a specialist. These are local assignments for the demonstration, not autonomous AI executions.</p><div className="workSpecialists">{[['Marketing','Marketing strategy & growth'],['Revenue','Conversion & revenue'],['Operations','Process & efficiency'],['Research','Market intelligence'],['Chief of Staff','Executive coordination'],['Finance','Margin & profitability']].map(([name,desc])=><button key={name} className={specialist===name?'active':''} onClick={()=>setSpecialist(name)}><strong>{name}</strong><small>{desc}</small></button>)}</div><div className="workEntry"><input aria-label="Team task" value={taskText} onChange={e=>setTaskText(e.target.value)} placeholder="Describe an assignment"/><button className="primary" disabled={!taskText.trim()} onClick={addTask}>Assign to {specialist}</button></div><div className="workItems">{workTasks.map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>setWorkTasks(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}><strong>{item.specialist}</strong> · {item.title}</span><button aria-label={'Remove '+item.title} onClick={()=>setWorkTasks(items=>items.filter(x=>x.id!==item.id))}>Remove</button></label>)}</div>{!workTasks.length&&<p className="workMuted">Select a specialist and create your first assignment.</p>}</div>}
+    {workspace==='company'&&<div className="workCard"><div className="eyebrow">MY BUSINESS · WORKSPACE PROFILE</div><h2>Start with what matters.</h2><p className="workMuted">Set the context for this planning session. This is not yet connected to a company knowledge graph.</p><label className="workField">Company or project name<input value={company} onChange={e=>setCompany(e.target.value)} placeholder="Your company"/></label><label className="workField">Primary business objective<textarea value={objective} onChange={e=>setObjective(e.target.value)} placeholder="What are you trying to improve?"/></label><div className="workSelection">{company||'Unnamed business'} · {objective||'Add an objective to focus your work.'}</div><button className="primary" disabled={remoteBusy||!company.trim()||!authenticated} onClick={()=>void saveSpace()}>Create private business workspace</button>{remoteSpaces.length>0&&<p className="workMuted">Saved businesses: {remoteSpaces.map(x=>x.name).join(' · ')}</p>}</div>}
+    {workspace==='opportunities'&&<div className="workCard"><div className="eyebrow">REVENUE OPPORTUNITIES</div><h2>Keep valuable follow-ups visible.</h2><p className="workMuted">Create and close opportunities in this temporary session. Values are potential contract value, not booked revenue.</p><div className="workEntry"><input aria-label="Opportunity name" value={opportunity} onChange={e=>setOpportunity(e.target.value)} placeholder="Opportunity or follow-up"/><input aria-label="Potential value" type="number" min="0" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Potential $"/><button className="primary" disabled={!opportunity.trim()||!amount||Number(amount)<0} onClick={addOpportunity}>Add opportunity</button></div><div className="workMetric">{currency(openOpportunities.reduce((sum,x)=>sum+x.value,0))}<small>Open potential contract value · {openOpportunities.length} opportunities</small></div><div className="workItems">{(liveMode?remoteItems.filter(x=>x.kind==='opportunity').map(x=>({id:x.id,name:x.title,value:Number(x.amount),done:x.status!=='open',remote:x})):opportunities.map(x=>({...x,remote:null}))).map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>item.remote?void updateRemoteItem(item.remote,e.target.checked?'done':'open'):setOpportunities(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}>{item.name}</span><strong>{currency(item.value)}</strong>{!item.remote&&<button aria-label={'Remove '+item.name} onClick={()=>setOpportunities(items=>items.filter(x=>x.id!==item.id))}>Remove</button>}</label>)}</div>{(liveMode?remoteItems.filter(x=>x.kind==='opportunity').length===0:opportunities.length===0)&&<p className="workMuted">No opportunities added yet.</p>}</div>}
+    {workspace==='decisions'&&<div className="workCard"><div className="eyebrow">BUSINESS DECISION REGISTER</div><h2>Decisions worth following through.</h2><p className="workMuted">Capture decisions and mark them resolved. Native iXo reasoning and durable decision continuity will be connected after scope-safe authentication is verified.</p><div className="workEntry"><input aria-label="Business decision" value={decision} onChange={e=>setDecision(e.target.value)} placeholder="What do you need to decide?"/><button className="primary" disabled={!decision.trim()} onClick={addDecision}>Add decision</button></div><div className="workItems">{(liveMode?remoteItems.filter(x=>x.kind==='decision').map(x=>({id:x.id,question:x.title,resolved:x.status!=='open',remote:x})):decisions.map(x=>({...x,remote:null}))).map(item=><label key={item.id}><input type="checkbox" checked={item.resolved} onChange={e=>item.remote?void updateRemoteItem(item.remote,e.target.checked?'done':'open'):setDecisions(items=>items.map(x=>x.id===item.id?{...x,resolved:e.target.checked}:x))}/><span className={item.resolved?'completed':''}>{item.question}</span>{!item.remote&&<button aria-label={'Remove '+item.question} onClick={()=>setDecisions(items=>items.filter(x=>x.id!==item.id))}>Remove</button>}</label>)}</div>{(liveMode?remoteItems.filter(x=>x.kind==='decision').length===0:decisions.length===0)&&<p className="workMuted">No decisions added yet.</p>}</div>}
+    {workspace==='team'&&<div className="workCard"><div className="eyebrow">MY AI EXECUTIVE TEAM</div><h2>Your specialists, working together.</h2><p className="workMuted">Assign planning tasks to a specialist. These are local assignments for the demonstration, not autonomous AI executions.</p><div className="workSpecialists">{[['Marketing','Marketing strategy & growth'],['Revenue','Conversion & revenue'],['Operations','Process & efficiency'],['Research','Market intelligence'],['Chief of Staff','Executive coordination'],['Finance','Margin & profitability']].map(([name,desc])=><button key={name} className={specialist===name?'active':''} onClick={()=>setSpecialist(name)}><strong>{name}</strong><small>{desc}</small></button>)}</div><div className="workEntry"><input aria-label="Team task" value={taskText} onChange={e=>setTaskText(e.target.value)} placeholder="Describe an assignment"/><button className="primary" disabled={!taskText.trim()} onClick={addTask}>Assign to {specialist}</button></div><div className="workItems">{(liveMode?remoteItems.filter(x=>x.kind==='task').map(x=>({id:x.id,title:x.title,specialist:x.specialist,done:x.status!=='open',remote:x})):workTasks.map(x=>({...x,remote:null}))).map(item=><label key={item.id}><input type="checkbox" checked={item.done} onChange={e=>item.remote?void updateRemoteItem(item.remote,e.target.checked?'done':'open'):setWorkTasks(items=>items.map(x=>x.id===item.id?{...x,done:e.target.checked}:x))}/><span className={item.done?'completed':''}><strong>{item.specialist}</strong> · {item.title}</span>{!item.remote&&<button aria-label={'Remove '+item.title} onClick={()=>setWorkTasks(items=>items.filter(x=>x.id!==item.id))}>Remove</button>}</label>)}</div>{(liveMode?remoteItems.filter(x=>x.kind==='task').length===0:!workTasks.length)&&<p className="workMuted">Select a specialist and create your first assignment.</p>}</div>}
     <div className="workCard workBrief">
       <div className="eyebrow">EXECUTIVE BRIEF · {showSample?'FICTIONAL DEMO':'YOUR SESSION DATA'}</div>
       <h2>Good morning. Here's what matters.</h2>
@@ -571,7 +617,7 @@ export default function App(){
 
   return <main><div className="veil"/><header><div className="logo"><span className="my">MY</span><span className="ixo">iXo</span></div><div className="demo">{user?'iXo CONNECTED':'EXECUTIVE DEMO'}</div></header><div className="wrap">
     <nav className="worldTabs" aria-label="Choose your MY iXo workspace"><button className={world==='life'?'active':''} aria-current={world==='life'?'page':undefined} onClick={()=>setWorld('life')}>My Life</button><button className={world==='work'?'active':''} aria-current={world==='work'?'page':undefined} onClick={()=>setWorld('work')}>My Work</button></nav>
-    {world==='work'&&<MyWorkHome/>}
+    {world==='work'&&<MyWorkHome authenticated={!!user}/>}
     {world==='life'&&<>
     {user&&stage!=='connect'&&<ProductNav active={activeView} onNavigate={openView}/>}
     {memoryLoading&&<div className="contextLoading">Loading your iXo context...</div>}
