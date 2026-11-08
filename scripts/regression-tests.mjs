@@ -32,6 +32,11 @@ assert.deepEqual(validateReasoningResult('mirror',normalizeReasoningResult('{"fi
 const root=process.cwd(),read=f=>readFileSync(join(root,f),'utf8'),walk=d=>readdirSync(d).flatMap(n=>{const p=join(d,n);return statSync(p).isDirectory()?walk(p):[p]});
 const today=read('src/components/TodayView.tsx'),mirror=read('src/components/MirrorView.tsx'),ask=read('src/components/AskIxoView.tsx'),decide=read('src/components/DecisionLab.tsx'),reasoning=read('src/services/reasoning.ts'),reasonApi=read('api/ixo/reason.js'),runStatus=read('api/ixo/run-status.js'),session=read('api/ixo/session.js'),app=read('src/App.tsx'),css=read('src/styles.css'),timeline=read('src/components/TimelineView.tsx'),explain=read('src/components/ExplainPanel.tsx');
 
+assert.match(app,/business_ai=1/);
+assert.match(app,/Request AI analysis \(only if enabled\)/);
+assert.match(app,/d\.company_id!==workspace/);
+assert.match(read('lib/work-reason.js'),/selectBusinessEvidence\(items,question\.trim\(\),\{workspaceId:workspace_id\}\)/);
+assert.match(read('lib/work-reason.js'),/typeof data\.has_more!=='boolean'/);
 assert.match(reasoning,/normalizeReasoningResult/);assert.match(reasoning,/validateReasoningResult/);
 for(const code of ['run_failed','result_missing','result_representation_invalid','result_schema_invalid','render_failed'])assert.match(reasoning+runStatus,new RegExp(code));
 for(const [source,mode] of [[today,'today'],[mirror,'mirror'],[ask,'personalized'],[decide,'decision']]){assert.match(source,new RegExp("waitForReasoning\\(job,'"+mode+"'"));assert.match(source,/reportUnobservedFailure/)}
