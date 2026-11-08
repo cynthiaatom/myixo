@@ -207,7 +207,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     setWorkTasks([{id:301,title:'Review funnel conversion drop-off',specialist:'AI CRO',done:false},{id:302,title:'Prepare executive growth priorities',specialist:'AI CMO',done:false},{id:303,title:'Assess weekly reporting duplication',specialist:'Operations',done:false}]);
     setShowSample(true);setWorkspace('overview');setNotice('Illustrative demo loaded. All records are fictional.');
   };
-  const addOpportunity=()=>{if(locked)return;if(liveMode){void saveRemoteItem('opportunity',opportunity,Number(amount),'',newDue||null);setOpportunity('');setAmount('');setOpportunityDue('');return}const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
+  const addOpportunity=()=>{if(locked)return;if(liveMode){void saveRemoteItem('opportunity',opportunity,Number(amount),'',opportunityDue||null);setOpportunity('');setAmount('');setOpportunityDue('');return}const n=Number(amount);if(!opportunity.trim()||!Number.isFinite(n)||n<0)return;setOpportunities(items=>[...items,{id:Date.now(),name:opportunity.trim(),value:n,done:false}]);setOpportunity('');setAmount('')};
   const addDecision=()=>{if(!decision.trim()||locked)return;if(liveMode){void saveRemoteItem('decision',decision,0,'',decisionDue||null);setDecision('');setNewDue('');return}setDecisions(items=>[...items,{id:Date.now(),question:decision.trim(),resolved:false}]);setDecision('')};
   const currency=(n:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n);
   const contribution=revenue*lift/100*margin/100;
