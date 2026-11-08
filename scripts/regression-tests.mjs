@@ -35,6 +35,8 @@ const today=read('src/components/TodayView.tsx'),mirror=read('src/components/Mir
 assert.match(app,/business_ai=1/);
 assert.match(app,/Request AI analysis \(only if enabled\)/);
 assert.match(app,/d\.company_id!==workspace/);
+assert.match(app,/businessAiRequestRef\.current!==requestId/);
+assert.match(app,/\[activeSpace\]\)/);
 assert.match(read('lib/work-reason.js'),/selectBusinessEvidence\(items,question\.trim\(\),\{workspaceId:workspace_id\}\)/);
 assert.match(read('lib/work-reason.js'),/typeof data\.has_more!=='boolean'/);
 assert.match(reasoning,/normalizeReasoningResult/);assert.match(reasoning,/validateReasoningResult/);
