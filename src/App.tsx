@@ -324,36 +324,36 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
   // Source evidence is distinct from the three-stage, company-verified questionnaire.
   // Only match explicit domain terms; unmatched Work facts remain in Business Memory.
   const nativeBusinessEvidencePatterns:Record<string,RegExp>={
-    'Strategy | Direction':/\\b(strategy|strategic|direction|mission|vision|roadmap)\\b/i,
-    'Strategy | Priorities':/\\b(priorit(?:y|ies|ize)|focus|deadline|objective)\\b/i,
-    'Strategy | Positioning':/\\b(positioning|competitor|competitive|market position)\\b/i,
-    'Marketing | Audience':/\\b(audience|persona|target market|ideal customer|segment)\\b/i,
-    'Marketing | Acquisition':/\\b(marketing|campaign|advertis|lead generation|traffic|seo)\\b/i,
-    'Marketing | Brand':/\\b(brand|reputation|messaging|identity)\\b/i,
-    'Revenue | Pipeline':/\\b(sales pipeline|prospect|sales lead|crm|deal)\\b/i,
-    'Revenue | Conversion':/\\b(conversion|close rate|sales funnel|checkout)\\b/i,
-    'Revenue | Retention':/\\b(retention|renewal|churn|repeat customer)\\b/i,
-    'Finance | Cash flow':/\\b(cash flow|cashflow|budget|expense|funding)\\b/i,
-    'Finance | Profitability':/\\b(profit|margin|revenue|income|pricing)\\b/i,
-    'Finance | Forecasting':/\\b(forecast|projection|financial plan)\\b/i,
-    'Operations | Processes':/\\b(process|workflow|procedure|schedule|operations)\\b/i,
-    'Operations | Efficiency':/\\b(efficien|productivity|time management|capacity|hours a week)\\b/i,
-    'Operations | Delivery':/\\b(deliver|fulfil|shipping|service level|implementation)\\b/i,
-    'People | Leadership':/\\b(manag|leadership|team lead|supervis)\\b/i,
-    'People | Talent':/\\b(employee|hire|hiring|recruit|training|staff|colleague)\\b/i,
-    'People | Accountability':/\\b(accountab|responsibil|ownership|delegat)\\b/i,
-    'Customers | Experience':/\\b(customer experience|user experience|accessibility|customer support)\\b/i,
-    'Customers | Satisfaction':/\\b(satisfaction|feedback|complaint|review)\\b/i,
-    'Customers | Loyalty':/\\b(loyalty|referral|repeat purchase)\\b/i,
-    'Technology | Systems':/\\b(website|software|platform|system|app|technology)\\b/i,
-    'Technology | Automation':/\\b(automat|ai agent|integration)\\b/i,
-    'Technology | Data':/\\b(database|analytics|data|reporting|metrics)\\b/i,
-    'Innovation | Products':/\\b(product|feature|prototype|launch)\\b/i,
-    'Innovation | Opportunities':/\\b(opportunit|expansion|new market|growth)\\b/i,
-    'Innovation | Differentiation':/\\b(differentiat|unique selling|innovation)\\b/i,
-    'Risk & Governance | Compliance':/\\b(compliance|regulation|legal|policy|law)\\b/i,
-    'Risk & Governance | Resilience':/\\b(risk|contingency|backup|disaster|resilien)\\b/i,
-    'Risk & Governance | Controls':/\\b(control|audit|security|permission|approval)\\b/i
+    'Strategy | Direction':/\b(strategy|strategic|direction|mission|vision|roadmap)\b/i,
+    'Strategy | Priorities':/\b(priorit(?:y|ies|ize)|focus|deadline|objective)\b/i,
+    'Strategy | Positioning':/\b(positioning|competitor|competitive|market position)\b/i,
+    'Marketing | Audience':/\b(audience|persona|target market|ideal customer|segment)\b/i,
+    'Marketing | Acquisition':/\b(marketing|campaign|advertis|lead generation|traffic|seo)\b/i,
+    'Marketing | Brand':/\b(brand|reputation|messaging|identity)\b/i,
+    'Revenue | Pipeline':/\b(sales pipeline|prospect|sales lead|crm|deal)\b/i,
+    'Revenue | Conversion':/\b(conversion|close rate|sales funnel|checkout)\b/i,
+    'Revenue | Retention':/\b(retention|renewal|churn|repeat customer)\b/i,
+    'Finance | Cash flow':/\b(cash flow|cashflow|budget|expense|funding)\b/i,
+    'Finance | Profitability':/\b(profit|margin|revenue|income|pricing)\b/i,
+    'Finance | Forecasting':/\b(forecast|projection|financial plan)\b/i,
+    'Operations | Processes':/\b(process|workflow|procedure|schedule|operations)\b/i,
+    'Operations | Efficiency':/\b(efficien|productivity|time management|capacity|hours a week)\b/i,
+    'Operations | Delivery':/\b(deliver|fulfil|shipping|service level|implementation)\b/i,
+    'People | Leadership':/\b(manag|leadership|team lead|supervis)\b/i,
+    'People | Talent':/\b(employee|hire|hiring|recruit|training|staff|colleague)\b/i,
+    'People | Accountability':/\b(accountab|responsibil|ownership|delegat)\b/i,
+    'Customers | Experience':/\b(customer experience|user experience|accessibility|customer support)\b/i,
+    'Customers | Satisfaction':/\b(satisfaction|feedback|complaint|review)\b/i,
+    'Customers | Loyalty':/\b(loyalty|referral|repeat purchase)\b/i,
+    'Technology | Systems':/\b(website|software|platform|system|app|technology)\b/i,
+    'Technology | Automation':/\b(automat|ai agent|integration)\b/i,
+    'Technology | Data':/\b(database|analytics|data|reporting|metrics)\b/i,
+    'Innovation | Products':/\b(product|feature|prototype|launch)\b/i,
+    'Innovation | Opportunities':/\b(opportunit|expansion|new market|growth)\b/i,
+    'Innovation | Differentiation':/\b(differentiat|unique selling|innovation)\b/i,
+    'Risk & Governance | Compliance':/\b(compliance|regulation|legal|policy|law)\b/i,
+    'Risk & Governance | Resilience':/\b(risk|contingency|backup|disaster|resilien)\b/i,
+    'Risk & Governance | Controls':/\b(control|audit|security|permission|approval)\b/i
   };
   const nativeEvidenceByDimension=(department:string,dimension:string)=>nativeWorkFacts.filter(f=>nativeBusinessEvidencePatterns[department+' | '+dimension]?.test(f.value)||false);
   const nativeEvidenceDimensions=businessDepartments.reduce((n,d)=>n+d.dimensions.filter(dim=>nativeEvidenceByDimension(d.name,dim).length>0).length,0);
@@ -645,7 +645,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
       <div className="eyebrow">EXECUTIVE BRIEF · {showSample?'FICTIONAL DEMO':'YOUR BUSINESS RECORDS'}</div>
       <h2>Good morning. Here's what matters.</h2>
       <p className="workMuted">{selectedBusiness?selectedBusiness.name+' · ':company?company+' · ':''}{selectedBusiness?.objective||objective||'Your priorities and next decisions in one place.'} This briefing is calculated from the selected workspace's recorded information, not from connected CRM or accounting systems.</p>
-      {nativeWorkLoading&&<p role="status">Loading your iXo business knowledge…</p>}{nativeWorkError&&<p role="alert">{nativeWorkError}</p>}{nativeWorkFactCount>0&&<section className="workSelection"><strong>What iXo already knows · {nativeWorkFactCount} Work facts</strong><p>{nativeEvidenceDimensions} of 30 business-map dimensions contain matching source evidence. These are existing iXo memories, not verified sales pipeline or task records.</p><div className="workInsights">{(['Strategy | Priorities','Revenue | Pipeline','People | Talent','Technology | Systems'] as const).map(key=>{const [dept,dim]=key.split(' | ');const matches=nativeEvidenceByDimension(dept,dim);return <article key={key}><strong>{dim}</strong><p>{matches.length?matches.slice(0,2).map(x=>x.value).join(' · '):'No matching Work memory found for this area.'}</p><small>{matches.length} source facts</small></article>})}</div><button onClick={()=>setWorkspace('map')}>Explore Business Map →</button></section>}<div className="workInsights">
+      {nativeWorkLoading&&<p role="status">Loading your iXo business knowledge…</p>}{nativeWorkError&&<p role="alert">{nativeWorkError}</p>}{nativeWorkFactCount>0&&<section className="workSelection"><strong>What iXo already knows · {nativeWorkFactCount} Work facts</strong><p>{nativeEvidenceDimensions} of 30 business-map dimensions contain matching source evidence. These are existing iXo Work memories, not verified records for the selected company. Review company relevance before acting.</p><div className="workInsights">{(['Strategy | Priorities','Revenue | Pipeline','People | Talent','Technology | Systems'] as const).map(key=>{const [dept,dim]=key.split(' | ');const matches=nativeEvidenceByDimension(dept,dim);return <article key={key}><strong>{dim}</strong><p>{matches.length?matches.slice(0,2).map(x=>x.value).join(' · '):'No matching iXo Work facts found for this area.'}</p><small>{matches.length} source facts</small></article>})}</div><button onClick={()=>setWorkspace('map')}>Explore Business Map →</button></section>}<div className="workInsights">
         <article><strong>Revenue opportunity</strong><p>{openOpportunities.length?openOpportunities.length+' open opportunities represent '+currency(openPipeline)+' in potential contract value.':'No open opportunities recorded yet. Add your first prospect or deal.'}</p><small>{showSample?'Fictional demo opportunities':'Saved opportunity register'}</small><button onClick={()=>setWorkspace('opportunities')}>Review pipeline →</button></article>
         <article><strong>Decision waiting</strong><p>{openDecisions.length?openDecisions.length+' decisions are awaiting resolution. Next: '+openDecisions[0].question:'No open business decisions recorded. Capture a strategic question to revisit.'}</p><small>{showSample?'Fictional demo decision register':'Saved decision register'}</small><button onClick={()=>setWorkspace('decisions')}>Review decisions →</button></article>
         <article><strong>Executive team priorities</strong><p>{pendingTasks.length?pendingTasks.length+' assignments are active. Next: '+pendingTasks[0].title:'No team assignments yet. Choose a specialist and create a planning task.'}</p><small>{showSample?'Fictional demo assignments':'Saved assignment register'}</small><button onClick={()=>setWorkspace('team')}>Review AI team →</button></article>
