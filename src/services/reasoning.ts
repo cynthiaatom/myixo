@@ -25,10 +25,20 @@ export async function reportUnobservedFailure(job:ReasoningJob|null,mode:Reasoni
 
 export async function startReasoning(mode:ReasoningMode,input:{question?:string;decision?:string;desired_outcome?:string;options?:string[];assumptions?:string[]},reasonSource?:ReasonSource):Promise<ReasoningJob>{
   const source=reasonSource||mode as ReasonSource;
-  const r=await fetch('/api/ixo/reason',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode,reason_source:source,...input})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok){const e:any=new Error(d.error||'Could not start iXo reasoning');e.code=d.code||'run_failed';throw e}
-  return {...d,reason_source:source} as ReasoningJob;
+  // Native iXo permits one active run per persistent chat. A simultaneous
+  // ASK/learning request must not turn MIRROR into a permanent error.
+  const started=Date.now();
+  for(;;){
+    const r=await fetch('/api/ixo/reason',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mode,reason_source:source,...input})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok)return {...d,reason_source:source} as ReasoningJob;
+    if(r.status===409&&d.code==='busy'&&Date.now()-started<75000){
+      await sleep(2500);
+      continue;
+    }
+    const e:any=new Error(d.code==='busy'?'iXo is working on another request. Please retry after it finishes.':(d.error||'Could not start iXo reasoning'));
+    e.code=d.code||'run_failed';throw e;
+  }
 }
 
 export function openRunEvents(runId:string,onStatus:(label:string)=>void){
