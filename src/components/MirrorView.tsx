@@ -10,6 +10,7 @@ const evidenceFor=(ids:unknown,facts:MemoryFact[]):EvidenceRef[]=>{const wanted=
 export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayload;nativeContext?:NativeIntelligenceContext|null;onMemory:()=>void;onDecide:()=>void}){
   const [findings,setFindings]=useState<Finding[]|null>(null);
   const [filteredCount,setFilteredCount]=useState(0);
+  const [evidencePrompts,setEvidencePrompts]=useState<{fact:MemoryFact;question:string}[]>([]);
   const [evidence,setEvidence]=useState<MemoryFact[]>([]);
   const [state,setState]=useState<'loading'|'success'|'insufficient'|'error'>('loading');
   const [status,setStatus]=useState('starting');
@@ -18,10 +19,13 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
   const autoStarted=useRef(false);
   const run=async()=>{
     let job:any=null;
-    setState('loading');setError('');setFindings(null);setFilteredCount(0);setStatus('starting');
+    setState('loading');setError('');setFindings(null);setFilteredCount(0);setEvidencePrompts([]);setStatus('starting');
     try{
       job=await startReasoning('mirror',{},'mirror');
       setEvidence(job.evidence||[]);
+      const relevant=(job.evidence||[]).filter((f:MemoryFact)=>String(f.value||'').length>25&&!irrelevant.test(String(f.value||'')));
+      const prompts=relevant.slice(0,4).map((fact:MemoryFact)=>({fact,question:/\b(goal|plan|want|priority|need)\b/i.test(fact.value)?'What is the next measurable step, and when will you review progress?':'Is this still accurate, and does it affect a decision you need to make?'}));
+      setEvidencePrompts(prompts);
       if(job.context_status==='insufficient_context'){setFindings([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
       try{const result=await waitForReasoning(job,'mirror',setStatus);const candidates=(result.findings||[]) as Finding[];
@@ -40,7 +44,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
     <div className="viewHero"><div className="eyebrow">iXo MIRROR</div><h1>WHAT AM I <em>NOT SEEING?</em></h1><p>A bounded reasoning pass for observable gaps, dependencies and conflicts. No mind-reading, diagnosis or manufactured certainty.</p></div>
     {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Looking for supported blind spots...</h2><p>{status==='starting'?'Thinking...':'Thinking...'}</p></div>}
     {state==='error'&&<div className="connectError"><b>MIRROR reasoning is unavailable.</b><p>{error}</p><button onClick={run}>Try again</button></div>}
-    {state==='insufficient'&&<div className="quietState"><h2>There isn't enough relevant context to evaluate MIRROR yet.</h2><p>{filteredCount?'iXo returned '+filteredCount+' observation(s) without usable supporting memory evidence or with unrelated content. They were withheld.':'This is not the same as finding no blind spots.'}</p><button onClick={run}>Retry analysis</button></div>}
+    {state==='insufficient'&&<div className="quietState"><h2>There isn't enough relevant context to evaluate MIRROR yet.</h2><p>{filteredCount?'iXo returned '+filteredCount+' observation(s) without usable supporting memory evidence or with unrelated content. They were withheld.':'This is not the same as finding no blind spots.'}</p><button onClick={run}>Retry analysis</button>{evidencePrompts.length>0&&<div className="mirrorGrid">{evidencePrompts.map(({fact,question})=><article className="mirrorCard" key={fact.id}><div className="findingMeta"><span className="findingType">FOLLOW-UP TO EXPLORE</span><span className="derivationBadge">SAVED MEMORY</span></div><h2>{question}</h2><p>{fact.value}</p><div className="actions"><button onClick={()=>setExplain({observation:question,known:[fact.value],inferred:[],unknown:[],sources:evidenceFor([fact.id],[fact])})}>Show source</button><button onClick={onMemory}>Correct iXo</button><button onClick={onDecide}>Think this through</button></div></article>)}</div>}</div>}
     {state==='success'&&findings?.length===0&&<div className="quietState"><div className="quietOrb"/><h2>No meaningful blind spot was found.</h2><p>iXo evaluated the selected context and returned no supported finding.</p></div>}
     {state==='success'&&findings&&findings.length>0&&<div className="mirrorGrid">{findings.slice(0,7).map((f,i)=>{const ex=explainFinding(f);return <article className="mirrorCard" key={i}>
       <div className="findingMeta"><span className="findingType">{f.type||'OBSERVATION'}</span><span className="derivationBadge">APPLICATION REASONING</span></div><h2>{f.observation}</h2><p>{f.why_noticed}</p>
