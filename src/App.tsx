@@ -101,7 +101,7 @@ function MyWorkHome({authenticated}:{authenticated:boolean}){
     try{
       const response=await fetch('/api/ixo/write-test',{method:'POST',headers:{'content-type':'application/json'}});
       const data=await response.json().catch(()=>({}));
-      setNativeWriteTestResult(data.ok?'iXo accepted a labeled test fact: '+data.marker+'. Readback is not yet verified.':('iXo write test failed ('+response.status+'): '+(typeof data.error==='string'?data.error:JSON.stringify(data.validation||{})));
+      setNativeWriteTestResult(data.ok?'iXo accepted a labeled test fact: '+data.marker+'. Readback is not yet verified.':('iXo write test failed ('+response.status+'): '+(typeof data.error==='string'?data.error:JSON.stringify(data.validation||{}))));
     }catch(e:any){setNativeWriteTestResult('Test could not reach iXo: '+(e.message||'Network error'))}
     finally{setNativeWriteTestBusy(false)}
   };
