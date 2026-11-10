@@ -21,7 +21,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
   const autoStarted=useRef(false);
   const run=async()=>{
     let job:any=null;
-    setState('loading');setError('');setFindings(null);setFilteredCount(0);setEvidencePrompts([]);setStatus('starting');
+    setState('loading');setError('');setFindings(null);setFilteredCount(0);setEvidencePrompts(makePrompts(memory?.items||[]));setStatus('starting');
     try{
       job=await startReasoning('mirror',{},'mirror');
       const combined=Array.from(new Map< string,MemoryFact >([...(memory?.items||[]),...(job.evidence||[])].map((f:MemoryFact)=>[f.id,f])).values());
@@ -38,7 +38,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
           return observation.length>15&&!irrelevant.test(observation)&&refs.length>0&&((f.known||[]).length>0||(f.inferred||[]).length>0);
         });
         setFilteredCount(candidates.length-supported.length);setFindings(supported);setState(supported.length?'success':'insufficient')}finally{close()}
-    }catch(e:any){await reportUnobservedFailure(job,'mirror','mirror',e);setError('I could not complete MIRROR right now. You can try again when you are ready.');setState('error')}
+    }catch(e:any){await reportUnobservedFailure(job,'mirror','mirror',e);setError('The live iXo reasoning request did not complete. Your saved memories are still available below for source-backed exploration.');setEvidencePrompts(makePrompts(memory?.items||[]));setState('error')}
   };
   useEffect(()=>{if(autoStarted.current)return;autoStarted.current=true;void run()},[]);
   const explainFinding=(f:Finding):Explanation=>({observation:String(f.observation||''),known:Array.isArray(f.known)?f.known:[],inferred:Array.isArray(f.inferred)?f.inferred:[],unknown:Array.isArray(f.unknown)?f.unknown:[],sources:evidenceFor(f.evidence_refs,evidence)});
@@ -47,6 +47,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
     <div className="viewHero"><div className="eyebrow">iXo MIRROR</div><h1>WHAT AM I <em>NOT SEEING?</em></h1><p>A bounded reasoning pass for observable gaps, dependencies and conflicts. No mind-reading, diagnosis or manufactured certainty.</p></div>
     {state==='loading'&&<div className="quietState"><div className="quietOrb"/><h2>Looking for supported blind spots...</h2><p>{status==='starting'?'Thinking...':'Thinking...'}</p></div>}
     {state==='error'&&<div className="connectError"><b>MIRROR reasoning is unavailable.</b><p>{error}</p><button onClick={run}>Try again</button></div>}
+    {state==='error'&&evidencePrompts.length>0&&<div className="mirrorGrid">{evidencePrompts.map(({fact,question})=><article className="mirrorCard" key={fact.id}><div className="findingMeta"><span className="findingType">FOLLOW-UP TO EXPLORE</span><span className="derivationBadge">SAVED MEMORY</span></div><h2>{question}</h2><p>{fact.value}</p><div className="actions"><button onClick={()=>setExplain({observation:question,known:[fact.value],inferred:[],unknown:[],sources:evidenceFor([fact.id],[fact])})}>Show source</button><button onClick={onMemory}>Correct iXo</button><button onClick={onDecide}>Think this through</button></div></article>)}</div>}
     {state==='insufficient'&&<div className="quietState"><h2>{evidencePrompts.length?'Questions worth exploring from your saved memories':'MIRROR could not establish a supported blind spot yet'}</h2><p>{filteredCount?'The reasoning response contained '+filteredCount+' unsupported or unrelated observation(s), which were withheld. ':''}{evidencePrompts.length?'These follow-ups are grounded in your existing memories; they are not confirmed blind spots.':'No usable source-backed follow-up was available in this analysis.'}</p><button onClick={run}>Retry analysis</button>{evidencePrompts.length>0&&<div className="mirrorGrid">{evidencePrompts.map(({fact,question})=><article className="mirrorCard" key={fact.id}><div className="findingMeta"><span className="findingType">FOLLOW-UP TO EXPLORE</span><span className="derivationBadge">SAVED MEMORY</span></div><h2>{question}</h2><p>{fact.value}</p><div className="actions"><button onClick={()=>setExplain({observation:question,known:[fact.value],inferred:[],unknown:[],sources:evidenceFor([fact.id],[fact])})}>Show source</button><button onClick={onMemory}>Correct iXo</button><button onClick={onDecide}>Think this through</button></div></article>)}</div>}</div>}
     {state==='success'&&findings?.length===0&&<div className="quietState"><div className="quietOrb"/><h2>No meaningful blind spot was found.</h2><p>iXo evaluated the selected context and returned no supported finding.</p></div>}
     {state==='success'&&findings&&findings.length>0&&<div className="mirrorGrid">{findings.slice(0,7).map((f,i)=>{const ex=explainFinding(f);return <article className="mirrorCard" key={i}>
