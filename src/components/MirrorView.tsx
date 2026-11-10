@@ -5,7 +5,15 @@ import ExplainPanel from './ExplainPanel';
 
 type Finding={type?:string;observation?:string;why_noticed?:string;known?:string[];inferred?:string[];unknown?:string[];evidence_refs?:string[];resolving_question?:string};
 const irrelevant=/\b(make document|discussion summary|download to choose|markdown, word, or pdf|save a summary of this conversation)\b/i;
-const validFacts=(facts:MemoryFact[])=>facts.filter(f=>String(f.value||'').trim().length>25&&!irrelevant.test(String(f.value||''))&&f.status!=='retracted');
+const isTestFact=(value:string)=>/\b(?:qa test|test checklist|juniper|dummy|synthetic|sample data|test goal|test fact)\b/i.test(value);
+const validFacts=(facts:MemoryFact[])=>facts.filter(f=>String(f.value||'').trim().length>25&&!irrelevant.test(String(f.value||''))&&!isTestFact(String(f.value||''))&&f.status!=='retracted');
+const makePrompts=(facts:MemoryFact[])=>validFacts(facts).filter(f=>/\b(?:goal|plan|need|want|decision|waiting|blocked|uncertain|priority|deadline|client|revenue|project)\b/i.test(f.value)).slice(0,4).map(fact=>{
+  const v=fact.value;
+  const hasDate=/\b(?:by|before|on)\s+(?:\w+\s+)?\d{1,2},?\s+20\d{2}\b|\b20\d{2}-\d{2}-\d{2}\b/i.test(v);
+  const hasSteps=/\b(?:steps?|first|second|then|complete|review)\b/i.test(v);
+  const question=/\b(?:waiting|blocked|dependent|approval)\b/i.test(v)?'What dependency is preventing progress, and who can resolve it?':/\b(?:decision|decide|choose|option)\b/i.test(v)?'What information would change this decision?':hasDate&&hasSteps?'Has this milestone been completed, and what changed as a result?':hasDate?'What could prevent this deadline from being met?':'What would make progress on this priority measurable?';
+  return {fact,question};
+});
 const evidenceFor=(ids:unknown,facts:MemoryFact[]):EvidenceRef[]=>{const wanted=new Set((Array.isArray(ids)?ids:[]).map(String).map(x=>x.replace(/[\[\]]/g,'')));return facts.filter(f=>wanted.has(f.id)).map(f=>({id:f.id,kind:'memory',label:f.category,detail:f.value,source:f.source,updated_at:f.updated_at}))};
 
 export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayload;nativeContext?:NativeIntelligenceContext|null;onMemory:()=>void;onDecide:()=>void}){
@@ -27,7 +35,7 @@ export default function MirrorView({memory,onMemory,onDecide}:{memory:MemoryPayl
       const combined=Array.from(new Map< string,MemoryFact >([...(memory?.items||[]),...(job.evidence||[])].map((f:MemoryFact)=>[f.id,f])).values());
       setEvidence(combined);
       const relevant=validFacts(combined).filter(f=>!/^\s*(?:hello|thanks|okay|yes|no)\s*[.!]?$/i.test(f.value));
-      const prompts=relevant.slice(0,4).map((fact:MemoryFact)=>({fact,question:/\b(goal|plan|want|priority|need)\b/i.test(fact.value)?'What is the next measurable step, and when will you review progress?':'Is this still accurate, and does it affect a decision you need to make?'}));
+      const prompts=makePrompts(relevant);
       setEvidencePrompts(prompts);
       if(job.context_status==='insufficient_context'){setFindings([]);setState('insufficient');return}
       const close=openRunEvents(job.run_id,setStatus);
